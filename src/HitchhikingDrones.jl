@@ -20,7 +20,9 @@ export
     MultiRotorUAVState,
     MultiRotorUAVAction,
     MultiRotorUAVDynamicsModel,
-    sigma_point_states_weights
+    sigma_point_states_weights,
+    next_state,
+    dynamics_cost
 
 
 # Partial Control MDP stuff
