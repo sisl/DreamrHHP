@@ -4,7 +4,7 @@ importall POMDPs
 # position at or before the car reaches it
 mutable struct ControlledHopOnStateAugmented{US <: UAVState}
     # States pertaining to this subproblem
-    uavstate::US # RELATIVE to goal
+    rel_uavstate::US # RELATIVE to goal
     control_transfer::Bool
     horizon::Int64 # POMDPs.jl has no explicit interface for finite horizon problems
 
@@ -12,7 +12,7 @@ mutable struct ControlledHopOnStateAugmented{US <: UAVState}
 end
 
 mutable struct ControlledHopOnState{US <: UAVState}
-    uavstate::US # RELATIVE to goal
+    rel_uavstate::US # RELATIVE to goal
     control_transfer::Bool
 end
 
@@ -155,9 +155,9 @@ function terminalreward(mdp::ControlledMultiRotorHopOnMDP, s::ControlledHopOnSta
         return -CONTROL_TRANSFER_PENALTY
     end
 
-    curr_pos = Point(s.uavstate.x, s.uavstate.y)
+    curr_pos = Point(s.rel_uavstate.x, s.rel_uavstate.y)
 
-    if point_norm(curr_pos) < HOP_DISTANCE_THRESHOLD
+    if point_norm(curr_pos) < DISTANCE_THRESHOLD
         return HOP_REWARD
     end
 
@@ -186,9 +186,9 @@ function terminalreward(mdp::ControlledMultiRotorHopOnMDP, s::ControlledHopOnSta
         return -CONTROL_TRANSFER_PENALTY
     end
 
-    curr_pos = Point(s.uavstate.x, s.uavstate.y)
+    curr_pos = Point(s.rel_uavstate.x, s.rel_uavstate.y)
 
-    if point_norm(curr_pos) < HOP_DISTANCE_THRESHOLD
+    if point_norm(curr_pos) < DISTANCE_THRESHOLD
         return HOP_REWARD
     end
 
@@ -203,9 +203,9 @@ function generate_sr(mdp::ControlledMultiRotorHopOnMDP, s::ControlledHopOnState,
 
     # Depending on action, do various things
     if a.uavaction != nothing
-        new_uavstate = next_state(mdp.dynamics, s.uavstate, a.uavaction, rng)
+        new_uavstate = next_state(mdp.dynamics, s.rel_uavstate, a.uavaction, rng)
 
-        cost += dynamics_cost(mdp.dynamics, s.uavstate, new_uavstate)
+        cost += dynamics_cost(mdp.dynamics, s.rel_uavstate, new_uavstate)
 
         if s.control_transfer == true
             throw(ErrorException("Can't have control true here"))
@@ -214,7 +214,7 @@ function generate_sr(mdp::ControlledMultiRotorHopOnMDP, s::ControlledHopOnState,
         return ControlledHopOnState(new_uavstate, false), -cost
     elseif a.control_transfer == true
         # Transfer control to higher layer
-        return ControlledHopOnState(s.uavstate, true), -cost
+        return ControlledHopOnState(s.rel_uavstate, true), -cost
     else
         throw(ArgumentError("Invalid action specified!"))
     end
@@ -233,8 +233,8 @@ function generate_sr(mdp::ControlledMultiRotorHopOnMDP, s::ControlledHopOnStateA
 
     # Depending on action, do various things
     if a.uavaction != nothing
-        new_uavstate = next_state(mdp.dynamics, s.uavstate, a.uavaction, rng)
-        cost += dynamics_cost(mdp.dynamics, s.uavstate, new_uavstate)
+        new_uavstate = next_state(mdp.dynamics, s.rel_uavstate, a.uavaction, rng)
+        cost += dynamics_cost(mdp.dynamics, s.rel_uavstate, new_uavstate)
 
         if s.control_transfer == true
             throw(ErrorException("Can't have control true here"))
@@ -243,7 +243,7 @@ function generate_sr(mdp::ControlledMultiRotorHopOnMDP, s::ControlledHopOnStateA
         return ControlledHopOnStateAugmented(new_uavstate, false, s.horizon-1), -cost
     elseif a.control_transfer == true
         # Transfer control to higher layer
-        return ControlledHopOnStateAugmented(s.uavstate, true, s.horizon-1), -cost
+        return ControlledHopOnStateAugmented(s.rel_uavstate, true, s.horizon-1), -cost
     else
         throw(ArgumentError("Invalid action specified!"))
     end
@@ -253,7 +253,7 @@ function transition(mdp::ControlledMultiRotorHopOnMDP, s::ControlledHopOnStateAu
 
     if a.uavaction != nothing
 
-        sigma_uavstates, sigma_probs = sigma_point_states_weights(mdp.dynamics, s.uavstate, a.uavaction)
+        sigma_uavstates, sigma_probs = sigma_point_states_weights(mdp.dynamics, s.rel_uavstate, a.uavaction)
         n_nbrs = length(sigma_uavstates)
         nbr_states = Vector{ControlledHopOnStateAugmented}(n_nbrs)
 
@@ -263,7 +263,7 @@ function transition(mdp::ControlledMultiRotorHopOnMDP, s::ControlledHopOnStateAu
 
         return SparseCat(nbr_states, sigma_probs)
     elseif a.control_transfer == true
-        return SparseCat([ControlledHopOnStateAugmented(s.uavstate, true, s.horizon-1)],[1.0])
+        return SparseCat([ControlledHopOnStateAugmented(s.rel_uavstate, true, s.horizon-1)],[1.0])
     else
         throw(ArgumentError("Invalid action specified!"))
     end
@@ -275,11 +275,11 @@ function reward(mdp::ControlledMultiRotorHopOnMDP, s::ControlledHopOnStateAugmen
 
     if a.uavaction != nothing
 
-        old_point::Point = Point(s.uavstate.x, s.uavstate.y)
-        new_point::Point = Point(sp.uavstate.x, sp.uavstate.y)
+        old_point::Point = Point(s.rel_uavstate.x, s.rel_uavstate.y)
+        new_point::Point = Point(sp.rel_uavstate.x, sp.rel_uavstate.y)
         dyn_dist::Float64 = point_dist(old_point, new_point)
 
-        if dyn_dist < EPSILON && sqrt(s.uavstate.xdot^2 + s.uavstate.ydot^2) < EPSILON
+        if dyn_dist < EPSILON && sqrt(s.rel_uavstate.xdot^2 + s.rel_uavstate.ydot^2) < EPSILON
             cost += HOVER_COEFFICIENT*MDP_TIMESTEP
         else
             cost += FLIGHT_COEFFICIENT*dyn_dist

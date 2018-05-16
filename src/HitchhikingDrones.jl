@@ -40,7 +40,8 @@ export
     generate_sr,
     isterminal,
     action_index,
-    generate_start_state
+    generate_start_state,
+    get_state_at_rest
 
 # Parameters for partial control MDP
 export

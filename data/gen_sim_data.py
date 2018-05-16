@@ -17,9 +17,9 @@ car1_ep3 = {'pos': (42.45,76.64), 'route': {'1' : ((42.45,76.54),16.88),
 car2_ep3 = {'pos': (40.80,72.77), 'route': None}
 
 # Concatenate cars for each epoch
-epoch1 = {'time' : 0.0, 'car-1' : car1_ep1, 'car-2' : car2_ep1}
-epoch2 = {'time' : 5.0, 'car-1' : car1_ep2, 'car-2' : car2_ep2}
-epoch3 = {'time' : 10.0, 'car-1' : car1_ep3, 'car-2' : car2_ep3}
+epoch1 = {'car-1' : car1_ep1, 'car-2' : car2_ep1}
+epoch2 = {'car-1' : car1_ep2, 'car-2' : car2_ep2}
+epoch3 = {'car-1' : car1_ep3, 'car-2' : car2_ep3}
 
 # Setup an episode with three epochs.
 # The time difference between the epochs is 5 seconds

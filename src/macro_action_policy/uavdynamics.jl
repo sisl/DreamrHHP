@@ -15,7 +15,7 @@ mutable struct MultiRotorUAVAction <: UAVAction
 end
 
 # Actions are defined as accelerations OR hop-on/hop-off
-@enum HOP_ACTION HOPON STAY=0 HOPOFF=-1
+@enum HOP_ACTION HOPON=1 STAY=0 HOPOFF=-1
 
 mutable struct MultiRotorUAVDynamicsModel <: UAVDynamicsModel
     timestep::Float64
@@ -34,6 +34,12 @@ function generate_start_state(model::MultiRotorUAVDynamicsModel, rng::RNG=Base.G
 
     return MultiRotorUAVState(x,y,xdot,ydot)
 end
+
+# For some known start position
+function get_state_at_rest(model::MultiRotorUAVDynamicsModel, p::Point)
+    return MultiRotorUAVState(p.x, p.y, 0.0, 0.0)
+end
+
 
 
 # Truncate positions to their bounds
@@ -110,8 +116,6 @@ function dynamics_cost(model::MultiRotorUAVDynamicsModel, state::MultiRotorUAVSt
 
     return cost
 end
-
-
 
 function sigma_point_states_weights(model::MultiRotorUAVDynamicsModel, state::MultiRotorUAVState, action::MultiRotorUAVAction)
 
