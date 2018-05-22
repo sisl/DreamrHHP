@@ -1,5 +1,3 @@
-using Graphs
-
 mutable struct AStarStates{D<:Number,Heap,H}
   parent_indices::Vector{Int}
   dists::Vector{D}
@@ -18,9 +16,9 @@ function Base.isless(e1::AStarHEntry, e2::AStarHEntry)
   return e1.fvalue < e2.fvalue
 end
 
-# create Dijkstra states
+# create Astar states
 
-function create_astar_states{V,D<:Number}(g::AbstractGraph{V}, ::Type{D})
+function create_astar_states(g::AbstractGraph{V}, ::Type{D}) where {V, D <: Number}
   n = num_vertices(g)
   parent_indices = zeros(Int, n)
   dists = fill(typemax(D), n)
@@ -40,19 +38,19 @@ end
 #
 ###################################################################
 
-function set_source!{V,D}(state::AStarStates{D}, g::AbstractGraph{V}, s::V)
+function set_source!(state::AStarStates{D}, g::AbstractGraph{V}, s::V) where {D, V}
   i = vertex_index(s, g)
   state.parent_indices[i] = i
   state.dists[i] = 0
   state.colormap[i] = 2
 end
 
-function process_neighbors!{V,D,Heap,H}(
+function process_neighbors!(
   state::AStarStates{D,Heap,H},
   graph::AbstractGraph{V},
   edge_dists::AbstractEdgePropertyInspector{D},
   u::V, du::D, visitor::AbstractDijkstraVisitor,
-  heuristic::Function)
+  heuristic::Function) where {V, D, Heap, H}
 
   dv::D = zero(D)
 
@@ -85,13 +83,13 @@ function process_neighbors!{V,D,Heap,H}(
 end
 
 
-function astar_shortest_path!{V, D, Heap, H}(
+function astar_shortest_path!(
     graph::AbstractGraph{V},                # the graph
     edge_dists::AbstractEdgePropertyInspector{D}, # distances associated with edges
     source::V,             # the source
     visitor::AbstractDijkstraVisitor,# visitor object
     heuristic::Function,      # Heuristic function for vertices
-    state::AStarStates{D,Heap,H})      # the states
+    state::AStarStates{D,Heap,H}) where {V, D, Heap, H}
 
     @graph_requires graph incidence_list vertex_map vertex_list
     edge_property_requirement(edge_dists, graph)
@@ -134,12 +132,12 @@ function astar_shortest_path!{V, D, Heap, H}(
 end
 
 
-function astar_shortest_path{V, D}(
+function astar_shortest_path(
   graph::AbstractGraph{V},                # the graph
   edge_len::AbstractEdgePropertyInspector{D}, # distances associated with edges
   source::V,
   visitor::AbstractDijkstraVisitor,
-  heuristic::Function = n -> 0)
+  heuristic::Function = n -> 0) where {V, D}
   state = create_astar_states(graph, D)
   astar_shortest_path!(graph, edge_len, source, visitor, heuristic, state)
 end

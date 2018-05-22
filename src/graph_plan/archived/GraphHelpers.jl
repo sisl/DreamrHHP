@@ -70,4 +70,3 @@ function coastEdgeWeight(u::DStarVertex, v::DStarVertex)
 
 end
 
-abstract type AbstractDStarLitePredecessorGenerator end

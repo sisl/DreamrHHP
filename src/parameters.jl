@@ -13,6 +13,7 @@ const XYDOT_LIM = 4.0
 const XYDOT_RES = 1.0
 const HORIZON_LIM = 20
 const ACC_NOISE_STD = 0.1
+const MAX_SPEED = 20.0
 
 # Sigma point weights
 const SIGMA_PT_ALPHA = 1.0
@@ -32,6 +33,7 @@ const HOP_REWARD = 100.0
 const CONTROL_TRANSFER_PENALTY = 100.0
 const INVALID_ACTION_PENALTY = 10.0 # For the real simulator
 const SUCCESS_REWARD = 1000.0 # For the real simulator
+const VALID_FLIGHT_EDGE_DIST_RATIO = 1.2 # The minimum ratio between dist of a flight edge and (max_speed*time_diff)
 
 # Additional simulator parameters - UNKNOWN to agent
 const CAR_TIME_STD = MDP_TIMESTEP/2.0

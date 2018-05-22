@@ -1,4 +1,4 @@
-using Graphs
+abstract type AbstractDStarLitePredecessorGenerator end
 
 mutable struct DStarLiteStates{D<:Number,Heap,H}
   parent_indices::Vector{Int}
@@ -19,7 +19,7 @@ function Base.isless(e1::DStarLiteHEntry, e2::DStarLiteHEntry)
   return e1.key < e2.key
 end
 
-function create_dstarlite_states{V,D<:Number}(g::AbstractGraph{V}, ::Type{D})
+function create_dstarlite_states(g::AbstractGraph{V}, ::Type{D}) where {V,D<:Number}
   n = num_vertices(g)
   parent_indices = zeros(Int,n)
   gvalue = fill(typemax(D),n)
@@ -39,7 +39,7 @@ function calculate_key(state::DStarLiteStates, s::Int, heuristic::Function)
 end
 
 
-function initialize!{D}(state::DStarLiteStates{D}, goalIdx::Int, heuristic::Function)
+function initialize!(state::DStarLiteStates{D}, goalIdx::Int, heuristic::Function) where {D}
   
   state.rhsvalue[goalIdx] = zero(D)
   state.hmap[goalIdx] = push!(state.heap, DStarLiteHEntry(goalIdx, ( heuristic(goalIdx), zero(D) ) ) )
@@ -69,14 +69,14 @@ function update_vertex!(state::DStarLiteStates, u::Int, heuristic::Function)
 end
 
 
-function compute_shortest_path!{V,D,Heap,H}(
+function compute_shortest_path!(
   graph::AbstractGraph{V},
   edge_dists::AbstractEdgePropertyInspector{D},
   source_vert::V,
   target_vert::V,
   generator::AbstractDStarLitePredecessorGenerator,
   heuristic::Function,
-  state::DStarLiteStates{D,Heap,H})
+  state::DStarLiteStates{D,Heap,H}) where {V,D,Heap,H}
 
   @graph_requires graph incidence_list vertex_map vertex_list
   edge_property_requirement(edge_dists, graph)
@@ -173,13 +173,13 @@ function compute_shortest_path!{V,D,Heap,H}(
 
 end
 
-function dstarlite_solve{V,D}(
+function dstarlite_solve(
   graph::AbstractGraph{V},
   edge_len::AbstractEdgePropertyInspector{D},
   source_vert::V,
   target_vert::V,
   generator::AbstractDStarLitePredecessorGenerator,
-  heuristic::Function = n -> zero(D))
+  heuristic::Function = n -> zero(D)) where {V,D}
 
   # Solve for the first time
   state = create_dstarlite_states(graph,D)
@@ -190,7 +190,7 @@ function dstarlite_solve{V,D}(
 end
 
 
-function dstarlite_resolve{V,D,Heap,H}(
+function dstarlite_resolve(
   graph::AbstractGraph{V},
   edge_len::AbstractEdgePropertyInspector{D},
   s_last::V,
@@ -198,7 +198,7 @@ function dstarlite_resolve{V,D,Heap,H}(
   target_vert::V,
   generator::AbstractDStarLitePredecessorGenerator,
   state::DStarLiteStates{D,Heap,H},
-  heuristic::Function = n -> zero(D))
+  heuristic::Function = n -> zero(D)) where {V,D,Heap,H}
 
   # ASSUME EDGE COSTS CHANGED
   state.km = state.km + heuristic(s_last.idx)

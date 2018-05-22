@@ -6,6 +6,7 @@ mutable struct Point
     y::Float64
 end
 Point() = Point(0.0,0.0)
+Point(t::Tuple{Float64,Float64}) = Point(t[1],t[2])
 
 function point_dist(p1::Point, p2::Point)
     distSq = (p1.x - p2.x)^2 + (p1.y - p2.y)^2
@@ -13,7 +14,7 @@ function point_dist(p1::Point, p2::Point)
 end
 
 function point_norm(p::Point)
-    return sqrt(p.x^2 + p.y^2)
+    return sqrt(p.x^2 + p.2)
 end
 
 function interpolate(p1::Point,p2::Point,frac::Float64)
@@ -25,85 +26,36 @@ function interpolate(p1::Point,p2::Point,frac::Float64)
 
 end
 
-# Point with an associated time
-struct TimePoint
-    point::Point
-    timeVal::Float64
-end
-
-
-mutable struct CarRoute
-    listOfPoints::Array{Point,1} # Set of waypoints for Car
-    listOfTimes::Array{Float64,1} # Time corresponding to car point
-
-    function CarRoute(_listOfPoints::Array{Point,1},
-        _listOfTimes::Array{Float64,1})
-    @assert length(_listOfPoints) == length(_listOfTimes)
-    listOfPoints = deepcopy(_listOfPoints)
-    listOfTimes = deepcopy(_listOfTimes)
-    return new(listOfPoints,listOfTimes)
-end
-end
-
+TimeStampedPoint = Tuple{Point, Float64}
 
 mutable struct Car
-    idx::Int
+    car_idx::String
     capacity::Int
-    route::CarRoute
+    route::Dict{String, Tuple{Point,Float64}}
+    next_route_idx::Int # From graph car vertices
     cargoDroneIdx::Int # 0 if no drone
+    active::Bool
+end
 
-    function Car(_idx::Int, _capacity::Int,_route::CarRoute)
-        route = deepcopy(_route)
-        return new(_idx,_capacity,route,0)
-    end
+function Car(_car_idx::String)
+    return Car(_car_idx, 1, Dict{String, TimePoint}(), 0, 0, true)
 end
 
 
-mutable struct DronePlan
-    listOfPoints::Vector{Point}
-    listOfIdxs::Vector{Int} # Vehicle indices for the vehicle for that interval; 0 if self
-    listOfTimes::Vector{Float64}
-
-    function DronePlan()
-        return new(Vector{Point}(),Vector{Int}(),Vector{Float64}())
-    end
-end
-
-function clear(d::DronePlan)
-    empty!(d.listOfPoints)
-    empty!(d.listOfIdxs)
-    empty!(d.listOfTimes)
-end
-
-function insert(d::DronePlan,pt::Point,idx::Int,timeVal::Float64)
-    push!(d.listOfPoints,pt)
-    push!(d.listOfIdxs,idx)
-    push!(d.listOfTimes,timeVal)
-end
-
-function printPlan(d::DronePlan)
-    nPoints = length(d.listOfPoints)
-
-    for i in 1 : nPoints
-        pt = d.listOfPoints[i]
-        println("(",pt.x,",",pt.y,") ; ",d.listOfTimes[i]," ; ",d.listOfIdxs[i])
-    end
-end
-
-
-
-mutable struct Drone
+# Any physical characteristics of the drone that are not updated during the problem
+struct Drone
     idx::Int
-    speed::Float64
-    startPos::Point
-    goalPos::Point
-    dronePlan::DronePlan
-    hasPlan::Bool
-
-    function Drone(_idx::Int, _speed::Float64,
-        _startPos::Point, _goalPos::Point)
-    startPos = deepcopy(_startPos)
-    goalPos = deepcopy(_goalPos)
-    return new(_idx,_speed,startPos,goalPos,DronePlan(),false)
+    max_speed::Float64
+    max_distance::Float64
+    max_energy::Float64
 end
+
+Drone() = Drone(0,MAX_SPEED,Inf,Inf)
+
+function Drone(_idx::Int)
+    return Drone(_idx, MAX_SPEED, Inf, Inf)
+end
+
+function Drone(_idx::Int,_max_speed::Float64)
+    return Drone(_idx, _max_speed, Inf, Inf)
 end

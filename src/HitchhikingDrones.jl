@@ -2,6 +2,7 @@ __precompile__()
 module HitchhikingDrones
 
 using Base
+using Graphs
 using DataStructures
 using Distributions
 using POMDPModels
@@ -11,6 +12,14 @@ using LocalApproximationValueIteration
 
 
 # package code goes here
+
+
+# Graph Planner components
+export
+    AbstractDStarLitePredecessorGenerator,
+    dstarlite_solve,
+    dstarlite_resolve,
+    astar_shortest_path
 
 # Dynamics stuff
 export
@@ -70,8 +79,13 @@ export
     step_sim
 
 
+
+
+
 include("types.jl")
 include("parameters.jl")
+include("graph_plan/astar_visitor.jl")
+include("graph_plan/dstar_lite.jl")
 include("macro_action_policy/uavdynamics.jl")
 include("macro_action_policy/partial_control_mdp.jl")
 include("simulators/hoponoff_singlecar_simulator.jl")
