@@ -84,8 +84,7 @@ export
 
 include("types.jl")
 include("parameters.jl")
-include("graph_plan/astar_visitor.jl")
-include("graph_plan/dstar_lite.jl")
+include("graph_plan/astar_visitor_light.jl")
 include("macro_action_policy/uavdynamics.jl")
 include("macro_action_policy/partial_control_mdp.jl")
 include("simulators/hoponoff_singlecar_simulator.jl")

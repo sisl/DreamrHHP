@@ -14,7 +14,11 @@ function point_dist(p1::Point, p2::Point)
 end
 
 function point_norm(p::Point)
-    return sqrt(p.x^2 + p.2)
+    return sqrt(p.x^2 + p.y^2)
+end
+
+function equal(p1::Point, p2::Point)
+    return (isapprox(p1.x,p2.x) && isapprox(p1.y,p2.y))
 end
 
 function interpolate(p1::Point,p2::Point,frac::Float64)
@@ -29,16 +33,15 @@ end
 TimeStampedPoint = Tuple{Point, Float64}
 
 mutable struct Car
-    car_idx::String
-    capacity::Int
-    route::Dict{String, Tuple{Point,Float64}}
-    next_route_idx::Int # From graph car vertices
+    curr_pos::Point
+    route_idx_range=Tuple{Int,Int}
     cargoDroneIdx::Int # 0 if no drone
+    capacity::Int
     active::Bool
 end
 
-function Car(_car_idx::String)
-    return Car(_car_idx, 1, Dict{String, TimePoint}(), 0, 0, true)
+function Car(_pt::Point,idx_range::Tuple{Int,Int})
+    return Car(_pt, idx_range, 0, 1, true)
 end
 
 

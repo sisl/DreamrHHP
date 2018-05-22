@@ -1,3 +1,12 @@
+mutable struct SimpleVListGraph{V} <: AbstractGraph{V}
+    vertices::Vector{V}
+end
+
+function Graphs.add_vertex!(g::SimpleVListGraph{V}, v::V) where V
+    push!(vertices, v)
+end
+
+
 # Vertex for drone flight waypoints
 # Will typically just be the start and goal
 mutable struct Vertex
@@ -8,20 +17,13 @@ end
 
 Vertex() = Vertex(0,Point(),0.0)
 
-# Vertex type for car route waypoints
-# Will be updated often
-# mutable struct CarRouteVertex <: Vertex
-#     idx::Int
-#     pos::Point
-#     time_stamp::Float64 # Keeping separate because this will be changed often
-#     car_idx::String
+
+# For new vertex, last updated TS is same
+# function Vertex(idx::Int, pos::Point, time_stamp::Float64)
+#     return Vertex(idx, pos, time_stamp, time_stamp)
 # end
 
-# CarRouteVertex() = CarRouteVertex(0,Point(),0.0,"null")
-
-# Vertex = Union{DroneVertex, CarRouteVertex}
-
-function Graphs.vertex_index(v::Vertex, g::IncidenceList{Vertex,ExEdge{Vertex}})
+function Graphs.vertex_index(v::Vertex, g::SimpleVListGraph{Vertex})
     return v.idx
 end
 
