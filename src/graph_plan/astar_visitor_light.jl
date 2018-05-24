@@ -49,20 +49,20 @@ function process_neighbors_implicit(
         v_color::Int = state.colormap[iv]
 
         if v_color == 0
-            state.dists[iv] = dv = du + edge_wt_fn(graph.vertices[u], graph.vertices[v])
+            state.dists[iv] = dv = du + edge_wt_fn(graph.vertices[u], graph.vertices[iv])
             state.parent_indices[iv] = u
             state.colormap[iv] = 1
-            Graphs.discover_vertex!(visitor, graph.vertices[u], graph.vertices[v], dv)
+            Graphs.discover_vertex!(visitor, graph.vertices[u], graph.vertices[iv], dv)
 
             state.hmap[iv] = push!(state.heap, AStarHEntry(iv, dv, dv + heuristic(graph.vertices[iv])))
 
         elseif v_color == 1
-            dv = du + edge_wt_fn(graph.vertices[u], graph.vertices[v])
+            dv = du + edge_wt_fn(graph.vertices[u], graph.vertices[iv])
             if dv < state.dists[iv]
                 state.dists[iv] = dv
                 state.parent_indices[iv] = u
 
-                Graphs.update_vertex!(visitor, graph.vertices[u], graph.vertices[v], dv)
+                Graphs.update_vertex!(visitor, graph.vertices[u], graph.vertices[iv], dv)
                 update!(state.heap, state.hmap[iv], AStarHEntry(iv, dv, dv + heuristic(graph.vertices[iv])))
             end
         end
@@ -70,7 +70,7 @@ function process_neighbors_implicit(
 end
 
 
-function astar_shortest_path_implicit!(
+function astar_light_shortest_path_implicit!(
     graph::AbstractGraph{V},                # the graph
     edge_wt_fn::Function, # distances associated with edges
     source::Int,             # the source

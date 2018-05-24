@@ -22,6 +22,7 @@ const SIGMA_PT_KAPPA = 1.0
 # System freq parameters
 const MDP_TIMESTEP = 5.0
 const OPENLOOP_DURATION = 30.0
+const WAYPT_TIME_CHANGE_THRESHOLD = MDP_TIMESTEP/2.0
 
 
 # Cost parameters

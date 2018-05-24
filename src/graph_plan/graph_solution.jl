@@ -10,18 +10,24 @@ mutable struct GraphSolution
     drone::Drone
     max_car_speed::Float64
     goal_idx::Int
-    curr_start_idx::Int
+    next_start_idx::Int
     n_vertices::Int
     curr_time::Float64
-    car_drone_graph::SimpleVListGraph{Vertex}
+    car_drone_graph::SimpleVListGraph{CarDroneVertex}
     route_vert_id_to_idx::Dict{String,Int}
+    flight_edge_wts::Dict{Tuple{Int,Int},Float64}
+    curr_soln_idx_path::Vector{Int}
+    curr_best_soln_value::Float64
 end
 
 function GraphSolution(_drone::Drone, _max_car_speed::Float64)
     # define car_drone_graph
-    car_drone_graph = SimpleVListGraph(Vertex[], is_directed=true)
+    car_drone_graph = SimpleVListGraph(CarDroneVertex[], is_directed=true)
 
-    return GraphSolution(Dict(), _drone, _max_car_speed, 0, 0, 0, 0, 0.0, car_drone_graph)
+    return GraphSolution(Dict{String,Car}(), _drone, 
+        _max_car_speed, 0, 0, 0, 0, 0.0, car_drone_graph, 
+        Dict{String,Int}(), Dict{Tuple{Int,Int},Float64}(),
+        Int[], Inf)
 end
 
 # Initialize graph for first epoch
@@ -33,12 +39,12 @@ function setup_graph(gs::GraphSolution, start_pos::Point, goal_pos::Point, epoch
 
     # Initialize start vertex
     gs.n_vertices += 1
-    add_vertex!(gs.car_drone_graph, Vertex(gs.n_vertices, start_pos, start_time))
-    gs.curr_start_idx = gs.n_vertices
+    add_vertex!(gs.car_drone_graph, CarDroneVertex(gs.n_vertices, start_pos, start_time,false))
+    gs.next_start_idx = gs.n_vertices
 
     # Initialize goal vertex
     gs.n_vertices += 1
-    add_vertex!(gs.car_drone_graph, Vertex(gs.n_vertices, goal_pos, goal_time))
+    add_vertex!(gs.car_drone_graph, CarDroneVertex(gs.n_vertices, goal_pos, goal_time,false))
     gs.goal_idx = gs.n_vertices
 
     # Now add vertices for car route
@@ -56,7 +62,7 @@ function setup_graph(gs::GraphSolution, start_pos::Point, goal_pos::Point, epoch
             # NOTE - parse here done for floating points so that intermediate points can be inserted later
             for (id, timept) in sort(collect(route_info),by=x->parse(Float64, x[1]))
                 gs.n_vertices += 1
-                add_vertex!(gs.car_drone_graph, Vertex(gs.n_vertices, Point(timept[1][1], timept[1][2]), timept[2]))
+                add_vertex!(gs.car_drone_graph, CarDroneVertex(gs.n_vertices, Point(timept[1][1], timept[1][2]), timept[2]), true)
                 route_vert_id_to_idx[string(car_id,"-",id)] = gs.n_vertices
             end
 
@@ -123,7 +129,7 @@ function update_cars_with_epoch(gs::GraphSolution, epoch::Dict)
 
                 for (id, timept) in sort(collect(route_info),by=x->parse(Float64, x[1]))
                     gs.n_vertices += 1
-                    add_vertex!(gs.car_drone_graph, Vertex(gs.n_vertices, Point(timept[1][1], timept[1][2]), timept[2]))
+                    add_vertex!(gs.car_drone_graph, CarDroneVertex(gs.n_vertices, Point(timept[1][1], timept[1][2]), timept[2]), true)
                     route_vert_id_to_idx[string(car_id,"-",id)] = gs.n_vertices
                 end
 
@@ -140,6 +146,78 @@ function update_cars_with_epoch(gs::GraphSolution, epoch::Dict)
     end
 end
 
-
-function add_drone_vertex()
+# Add a new vertex and return index of it
+function add_drone_vertex(gs::GraphSolution, pos::Point, time_stamp::Float64)
+    gs.n_vertices += 1
+    add_vertex!(gs.car_drone_graph, CarDroneVertex(gs.n_vertices, pos, time_stamp), false)
+    return gs.n_vertices
 end
+
+# Add a new vertex and make that the new start index
+function add_updated_start(gs::GraphSolution, pos::Point, time_stamp::Float64)
+    gs.next_start_idx = add_drone_vertex(gs, pos, time_stamp)
+end
+
+
+function astar_heuristic(gs::GraphSolution. v::CarDroneVertex)
+    return TIME_COEFFICIENT*point_dist(v.pos, gs.car_drone_graph.vertices[gs.goal_idx])/gs.max_car_speed
+end
+
+
+function edge_weight_function_recompute(flightedge_wt_fn::Function, gs::GraphSolution, u::CarDroneVertex, v::CarDroneVertex)
+    if u.is_car && v.is_car
+        return coast_edge_cost(u,v)
+    else if !v.is_car # Flight edge
+        return flight_edge_cost_nominal(u,v)
+    else
+        return flightedge_wt_fn(u,v,gs.drone)
+    end
+end
+
+
+# TODO - Should coast edge also use value function????
+function edge_weight_function_lookup(flightedge_wt_fn::Function, gs::GraphSolution, u::CarDroneVertex, v::CarDroneVertex)
+    if u.is_car && v.is_car
+        return coast_edge_cost(u,v)
+    else if !v.is_car # Flight edge
+        return flight_edge_cost_nominal(u,v)
+    else
+        # Unconstrained flight edge
+        edge_weight_val = get(gs.flight_edge_wts, (u,v), Inf)
+        if edge_weight_val == Inf
+            # Not present - compute weight and update
+            edge_weight_val = flightedge_wt_fn(u,v,gs.drone)
+            gs.flight_edge_wts[(u,v)] = edge_weight_val
+        else
+            # If either vertex time has changed significantly, update both and recompute
+            if abs(u.time_stamp - u.last_time_stamp) > WAYPT_TIME_CHANGE_THRESHOLD
+                || abs(v.time_stamp - v.last_time_stamp) > WAYPT_TIME_CHANGE_THRESHOLD
+                u.last_time_stamp = u.time_stamp
+                v.last_time_stamp = v.time_stamp
+                edge_weight_val = flightedge_wt_fn(u,v,gs.drone)
+                gs.flight_edge_wts[(u,v)] = edge_weight_val
+            end
+        end
+
+        # Return the appropriate value
+        return edge_weight_val
+    end
+end
+
+
+# Need a function for NEXT MACRO_ACTION - so Next segment where mode changes!
+# 
+
+
+# Whatever the next replan start vertex is, plan from it towards goal
+function plan_from_next_start(gs::GraphSolution, flightedge_wt_fn::Function)
+
+    # Set up heuristic and edge_weight_functions
+    # TODO : What's the right way to just do this once?
+    heuristic(v) = astar_heuristic(gs, v)
+    edge_wt_fn(u,v) = edge_weight_function(flightedge_wt_fn, gs.drone, u, v)
+
+    astar_path_soln = astar_shortest_path_implicit(gs.car_drone_graph,edge_wt_fn,gs.next_start_idx,GoalVisitorImplicit(gs),heuristic)
+
+    # Obtain path and its current cost
+    # This is the best path regardless. DON'T NEED TO RECOMPUTE OLD PATH
