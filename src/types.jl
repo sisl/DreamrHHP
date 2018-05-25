@@ -34,7 +34,7 @@ TimeStampedPoint = Tuple{Point, Float64}
 
 mutable struct Car
     curr_pos::Point
-    route_idx_range=Tuple{Int,Int}
+    route_idx_range::Tuple{Int,Int}
     cargoDroneIdx::Int # 0 if no drone
     capacity::Int
     active::Bool

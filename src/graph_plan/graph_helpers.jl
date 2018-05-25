@@ -15,12 +15,13 @@ mutable struct CarDroneVertex
     time_stamp::Float64
     last_time_stamp::Float64
     is_car::Bool
+    car_id::String
 end
 
 CarDroneVertex() = CarDroneVertex(0,Point(),0.0,0.0,false)
 
-function CarDroneVertex(idx::Int, pos::Point, time_stamp::Float64, is_car::Bool)
-    return CarDroneVertex(idx, pos, time_stamp, time_stamp, is_car)
+function CarDroneVertex(idx::Int, pos::Point, time_stamp::Float64, is_car::Bool, car_id::String="")
+    return CarDroneVertex(idx, pos, time_stamp, time_stamp, is_car, car_id)
 end
 
 

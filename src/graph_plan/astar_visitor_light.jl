@@ -103,7 +103,7 @@ function astar_light_shortest_path_implicit!(
 
         nbrs = Vector{Int}()
 
-        if !Graphs.include_vertex!(visitor, graph.vertices[state.parent_indices[ui]], graph.vertices[u], du, nbrs)
+        if !Graphs.include_vertex!(visitor, graph.vertices[state.parent_indices[ui]], graph.vertices[ui], du, nbrs)
             return state
         end
 
