@@ -4,6 +4,7 @@ module HitchhikingDrones
 using Base
 using Graphs
 using DataStructures
+using StaticArrays
 using Distributions
 using POMDPModels
 using POMDPs
@@ -16,10 +17,18 @@ using LocalApproximationValueIteration
 
 # Graph Planner components
 export
-    AbstractDStarLitePredecessorGenerator,
-    dstarlite_solve,
-    dstarlite_resolve,
-    astar_shortest_path
+    astar_shortest_path,
+    astar_light_shortest_path_implicit,
+    SimpleVListGraph,
+    CarDroneVertex,
+    GraphSolution,
+    setup_graph,
+    update_cars_with_epoch,
+    add_drone_vertex,
+    add_new_start,
+    update_next_start,
+    plan_from_next_start,
+    get_future_macro_actions_values
 
 # Dynamics stuff
 export
@@ -69,7 +78,11 @@ export
 export
     Point,
     pointDist,
-    point_norm
+    point_norm,
+    equal,
+    interpolate,
+    Car,
+    Drone
 
 # For simulator
 export
@@ -85,6 +98,8 @@ export
 include("types.jl")
 include("parameters.jl")
 include("graph_plan/astar_visitor_light.jl")
+include("graph_plan/graph_helpers.jl")
+include("graph_plan/graph_solution.jl")
 include("macro_action_policy/uavdynamics.jl")
 include("macro_action_policy/partial_control_mdp.jl")
 include("simulators/hoponoff_singlecar_simulator.jl")

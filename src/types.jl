@@ -30,17 +30,21 @@ function interpolate(p1::Point,p2::Point,frac::Float64)
 
 end
 
-TimeStampedPoint = Tuple{Point, Float64}
-
 mutable struct Car
     curr_pos::Point
-    route_idx_range::Tuple{Int,Int}
+    route_idx_range::Vector{Int} # Size 2 but needs to be changeable
     cargoDroneIdx::Int # 0 if no drone
     capacity::Int
     active::Bool
 end
 
-function Car(_pt::Point,idx_range::Tuple{Int,Int})
+# Default constructor inactive car - unlikely to be used
+function InactiveCar()
+    return Car(Point(), [0,0], 0, 1, false)
+end
+
+
+function Car(_pt::Point,idx_range::Vector{Int})
     return Car(_pt, idx_range, 0, 1, true)
 end
 
@@ -53,10 +57,10 @@ struct Drone
     max_energy::Float64
 end
 
-Drone() = Drone(0,MAX_SPEED,Inf,Inf)
+Drone() = Drone(0,MAX_DRONE_SPEED,Inf,Inf)
 
 function Drone(_idx::Int)
-    return Drone(_idx, MAX_SPEED, Inf, Inf)
+    return Drone(_idx, MAX_DRONE_SPEED, Inf, Inf)
 end
 
 function Drone(_idx::Int,_max_speed::Float64)

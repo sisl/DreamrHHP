@@ -13,7 +13,8 @@ const XYDOT_LIM = 4.0
 const XYDOT_RES = 1.0
 const HORIZON_LIM = 20
 const ACC_NOISE_STD = 0.1
-const MAX_SPEED = 20.0
+const MAX_DRONE_SPEED = 20.0
+const MAX_CAR_SPEED = 35.0
 
 # Sigma point weights
 const SIGMA_PT_ALPHA = 1.0

@@ -24,9 +24,9 @@ mutable struct GraphSolution
     per_plan_considered_cars::Dict{Int,Set{String}}
 end
 
-function GraphSolution(_drone::Drone, _max_car_speed::Float64)
+function GraphSolution(_drone::Drone, _max_car_speed::Float64=MAX_CAR_SPEED)
     # define car_drone_graph
-    car_drone_graph = SimpleVListGraph(CarDroneVertex[], is_directed=true)
+    car_drone_graph = SimpleVListGraph(Vector{CarDroneVertex}())
 
     return GraphSolution(Dict{String,Car}(), _drone, 
         _max_car_speed, 0, 0, 0, 0.0, car_drone_graph, 
@@ -46,13 +46,13 @@ function setup_graph(gs::GraphSolution, start_pos::Point, goal_pos::Point, epoch
     gs.n_vertices += 1
     add_vertex!(gs.car_drone_graph, CarDroneVertex(gs.n_vertices, start_pos, start_time,false))
     gs.next_start_idx = gs.n_vertices
-    push!(drone_vertex_idxs, gs.n_vertices)
+    push!(gs.drone_vertex_idxs, gs.n_vertices)
 
     # Initialize goal vertex
     gs.n_vertices += 1
     add_vertex!(gs.car_drone_graph, CarDroneVertex(gs.n_vertices, goal_pos, goal_time,false))
     gs.goal_idx = gs.n_vertices
-    push!(drone_vertex_idxs, gs.n_vertices)
+    push!(gs.drone_vertex_idxs, gs.n_vertices)
 
     # Now add vertices for car route
     # NOTE - Ordering of cars is immaterial here
@@ -69,19 +69,19 @@ function setup_graph(gs::GraphSolution, start_pos::Point, goal_pos::Point, epoch
             # NOTE - parse here done for floating points so that intermediate points can be inserted later
             for (id, timept) in sort(collect(route_info),by=x->parse(Float64, x[1]))
                 gs.n_vertices += 1
-                add_vertex!(gs.car_drone_graph, CarDroneVertex(gs.n_vertices, Point(timept[1][1], timept[1][2]), timept[2]), true, car_id)
-                route_vert_id_to_idx[string(car_id,"-",id)] = gs.n_vertices
+                add_vertex!(gs.car_drone_graph, CarDroneVertex(gs.n_vertices, Point(timept[1][1], timept[1][2]), timept[2], true, car_id))
+                gs.route_vert_id_to_idx[string(car_id,"-",id)] = gs.n_vertices
             end
 
             last_route_idx = gs.n_vertices
 
             # Now add appropriate car object
-            gs.car_map[car_id] = Car(Point(car_info["pos"][1], car_info["pos"][2]), (first_route_idx, last_route_idx))
-            debug("Car ",car_id," has been added!")
+            gs.car_map[car_id] = Car(Point(car_info["pos"][1], car_info["pos"][2]), [first_route_idx, last_route_idx])
+            info("Car ",car_id," has been added!")
         else
             # Add inactive car - this should not happen at first epoch though
             warn("Inactive Car ",car_id," in first epoch!")
-            gs.car_map[car_id] = Car(Point(),0,0,1,false)
+            gs.car_map[car_id] = InactiveCar()
         end
     end
 end
@@ -113,18 +113,18 @@ function update_cars_with_epoch(gs::GraphSolution, epoch::Dict)
                 sorted_route = sort(collect(route_info), by=x->parse(Float64, x[1]))
                 for (id, timept) in sorted_route
                     # TODO: Check for equality of points?
-                    gs.vertices[route_vert_id_to_idx[string(car_id,"-",id)]].time_stamp = timept[2]
+                    gs.car_drone_graph.vertices[gs.route_vert_id_to_idx[string(car_id,"-",id)]].time_stamp = timept[2]
                 end
 
                 # Check if the next waypoint of route has been updated
-                first_route_idx = route_vert_id_to_idx[string(car_id,"-",sorted_route[1][1])]
+                first_route_idx = gs.route_vert_id_to_idx[string(car_id,"-",sorted_route[1][1])]
                 if this_car.route_idx_range[1] != first_route_idx
-                    debug("Car ",car_id," has updated its next route point to ",id)
+                    info("Car ",car_id," has updated its next route point to ",first_route_idx)
                     this_car.route_idx_range[1] = first_route_idx
                 end
             else
                 # Car has become inactive
-                debug("Car ",car_id," has become inactive!")
+                info("Car ",car_id," has become inactive!")
                 this_car.active = false
             end
         else
@@ -136,18 +136,18 @@ function update_cars_with_epoch(gs::GraphSolution, epoch::Dict)
 
                 for (id, timept) in sort(collect(route_info),by=x->parse(Float64, x[1]))
                     gs.n_vertices += 1
-                    add_vertex!(gs.car_drone_graph, CarDroneVertex(gs.n_vertices, Point(timept[1][1], timept[1][2]), timept[2]), true, car_id)
-                    route_vert_id_to_idx[string(car_id,"-",id)] = gs.n_vertices
+                    add_vertex!(gs.car_drone_graph, CarDroneVertex(gs.n_vertices, Point(timept[1][1], timept[1][2]), timept[2], true, car_id))
+                    gs.route_vert_id_to_idx[string(car_id,"-",id)] = gs.n_vertices
                 end
 
                 last_route_idx = gs.n_vertices
 
-                gs.car_map[car_id] = Car(Point(car_info["pos"][1], car_info["pos"][2]), (first_route_idx, last_route_idx))
-                debug("Car ",car_id," has been added!")
+                gs.car_map[car_id] = Car(Point(car_info["pos"][1], car_info["pos"][2]), [first_route_idx, last_route_idx])
+                info("Car ",car_id," has been added!")
             else
                 # Add inactive car - this should not happen at first epoch though
                 warn("Inactive Car ",car_id," in its first epoch!")
-                gs.car_map[car_id] = Car(Point(),0,0,1,false)
+                gs.car_map[car_id] = InactiveCar()
             end
         end
     end
@@ -156,7 +156,7 @@ end
 # Add a new vertex and return index of it
 function add_drone_vertex(gs::GraphSolution, pos::Point, time_stamp::Float64)
     gs.n_vertices += 1
-    add_vertex!(gs.car_drone_graph, CarDroneVertex(gs.n_vertices, pos, time_stamp), false)
+    add_vertex!(gs.car_drone_graph, CarDroneVertex(gs.n_vertices, pos, time_stamp, false))
     push!(gs.drone_vertex_idxs,gs.n_vertices)
     return gs.n_vertices
 end
@@ -167,15 +167,15 @@ function add_new_start(gs::GraphSolution, pos::Point, time_stamp::Float64)
 end
 
 
-function astar_heuristic(gs::GraphSolution. v::CarDroneVertex)
-    return TIME_COEFFICIENT*point_dist(v.pos, gs.car_drone_graph.vertices[gs.goal_idx])/gs.max_car_speed
+function astar_heuristic(gs::GraphSolution, v::CarDroneVertex)
+    return TIME_COEFFICIENT*point_dist(v.pos, gs.car_drone_graph.vertices[gs.goal_idx].pos)/gs.max_car_speed
 end
 
 
 function edge_weight_function_recompute(flightedge_wt_fn::Function, gs::GraphSolution, u::CarDroneVertex, v::CarDroneVertex)
     if u.is_car && v.is_car
         return coast_edge_cost(u,v)
-    else if !v.is_car # Flight edge
+    elseif !v.is_car # Flight edge to drone vertex
         return flight_edge_cost_nominal(u,v)
     else
         return flightedge_wt_fn(u,v,gs.drone)
@@ -187,10 +187,10 @@ end
 function edge_weight_function_lookup(flightedge_wt_fn::Function, gs::GraphSolution, u::CarDroneVertex, v::CarDroneVertex)
     if u.is_car && v.is_car
         return coast_edge_cost(u,v)
-    else if !v.is_car # Flight edge
+    elseif !v.is_car # Flight edge to drone vertex
         return flight_edge_cost_nominal(u,v)
     else
-        # Unconstrained flight edge
+        # Constrained flight edge
         edge_weight_val = get(gs.flight_edge_wts, (u,v), Inf)
         if edge_weight_val == Inf
             # Not present - compute weight and update
@@ -198,8 +198,7 @@ function edge_weight_function_lookup(flightedge_wt_fn::Function, gs::GraphSoluti
             gs.flight_edge_wts[(u,v)] = edge_weight_val
         else
             # If either vertex time has changed significantly, update both and recompute
-            if abs(u.time_stamp - u.last_time_stamp) > WAYPT_TIME_CHANGE_THRESHOLD
-                || abs(v.time_stamp - v.last_time_stamp) > WAYPT_TIME_CHANGE_THRESHOLD
+            if abs(u.time_stamp - u.last_time_stamp) > WAYPT_TIME_CHANGE_THRESHOLD || abs(v.time_stamp - v.last_time_stamp) > WAYPT_TIME_CHANGE_THRESHOLD
                 u.last_time_stamp = u.time_stamp
                 v.last_time_stamp = v.time_stamp
                 edge_weight_val = flightedge_wt_fn(u,v,gs.drone)
@@ -214,8 +213,7 @@ end
 
 # If no new waypoints for car routes, iterate over car_routes using route_idx_range
 function car_route_idx_list_simple(gs::GraphSolution, car_id::String)
-    route_range::Tuple{Int,Int} = gs.car_map[car_id].route_idx_range
-    return Vector{Int}(route_range[1] : route_range[2])
+    return Vector{Int}(gs.car_map[car_id].route_idx_range[1] : gs.car_map[car_id].route_idx_range[2])
 end
 
 # function car_route_idx_list_general(gs::GraphSolution, car_id::String)
@@ -277,13 +275,13 @@ function plan_from_next_start(gs::GraphSolution, flightedge_wt_fn::Function, val
     empty!(gs.future_macro_actions_values)
 
     # By construction, curr_soln_idx_path must end in goal_idx
-    curr_action_start::CarDroneVertex = gs.car_drone_graph.vertices[gs.curr_soln_idx_path[1]]
+    curr_action_start = gs.car_drone_graph.vertices[gs.curr_soln_idx_path[1]]
 
     for idx in gs.curr_soln_idx_path[2:end-1]
         next_action_start = gs.car_drone_graph.vertices[idx]
         if next_action_start.is_car != curr_action_start.is_car
             # Represents a change
-            macro_action_val::Float64 = astar_path_soln.dists[next_action_start.idx] - astar_path_soln.dists[curr_action_start.idx]
+            macro_action_val = astar_path_soln.dists[next_action_start.idx] - astar_path_soln.dists[curr_action_start.idx]
             push!(gs.future_macro_actions_values,((curr_action_start, next_action_start), macro_action_val))
             curr_action_start = next_action_start
         end
@@ -325,7 +323,7 @@ function Graphs.include_vertex!(vis::GoalVisitorImplicit, u::CarDroneVertex, v::
     # First do special work if it is a car route vertex
     # Add the next route vertex (and no others) from that car
     if v.is_car == true
-        self_route_idxs::Vector{Int} = car_route_idx_list_simple(gs, v.car_id)
+        self_route_idxs::Vector{Int} = car_route_idx_list_simple(vis.gs, v.car_id)
 
         # Find the position of the current index on the list
         v_pos::Int = findfirst(self_route_idxs, v.idx)
@@ -338,34 +336,34 @@ function Graphs.include_vertex!(vis::GoalVisitorImplicit, u::CarDroneVertex, v::
 
     # Now add flight edges to all other applicable car and drone verts
     # Assume predecessor had some passedCars or empty set
-    gs.per_plan_considered_cars[v.idx] = copy(gs.per_plan_considered_cars[u.idx])
+    vis.gs.per_plan_considered_cars[v.idx] = copy(vis.gs.per_plan_considered_cars[u.idx])
 
     # If pred was a car vertex and of a different idx, update passed cars
     if u.is_car == true && u.car_id != v.car_id
-        push!(gs.per_plan_considered_cars[v.idx], u.car_id)
+        push!(vis.gs.per_plan_considered_cars[v.idx], u.car_id)
     end
 
     # Iterate over cars that are not the same and not in passed cars
-    for car_id in collect(keys(gs.car_map))
-        if car_id == v.car_id || car_id in gs.per_plan_considered_cars[v.idx]
+    for car_id in collect(keys(vis.gs.car_map))
+        if car_id == v.car_id || car_id in vis.gs.per_plan_considered_cars[v.idx]
             continue
         end
 
-        # Iterarte over car route vertices
-        car_route_idxs::Vector{Int} = car_route_idx_list_simple(gs, car_id)
+        # Iterate over car route vertices
+        car_route_idxs::Vector{Int} = car_route_idx_list_simple(vis.gs, car_id)
 
         # NOTE - This assumes that all vertices are later in time
         # Epoch update function has handled this
         for next_idx in car_route_idxs
-            if vis.valid_edge_fn(v,gs.car_drone_graph.vertices[next_idx])
+            if vis.valid_edge_fn(v,vis.gs.car_drone_graph.vertices[next_idx])
                 push!(nbrs,next_idx)
             end
         end
     end
 
     # Iterate over remaining drone vertices and add flight edges to them
-    for dvtx_idx in gs.drone_vertex_idxs
-        if dvtx_idx != v.idx && vis.valid_edge_fn(v,gs.car_drone_graph.vertices[dvtx_idx])
+    for dvtx_idx in vis.gs.drone_vertex_idxs
+        if dvtx_idx != v.idx && vis.valid_edge_fn(v,vis.gs.car_drone_graph.vertices[dvtx_idx])
             push!(nbrs, dvtx_idx)
         end
     end

@@ -116,7 +116,7 @@ function astar_light_shortest_path_implicit!(
     state
 end
 
-function astar_shortest_path_implicit(
+function astar_light_shortest_path_implicit(
     graph::AbstractGraph{V},                # the graph
     edge_wt_fn::Function, # distances associated with edges
     source::Int,
@@ -124,5 +124,5 @@ function astar_shortest_path_implicit(
     heuristic::Function = n -> 0,
     ::Type{D} = Float64) where {V, D <: Number}
     state = create_astar_states(graph, D)
-    astar_shortest_path_implicit!(graph, edge_wt_fn, source, visitor, heuristic, state)
+    astar_light_shortest_path_implicit!(graph, edge_wt_fn, source, visitor, heuristic, state)
 end

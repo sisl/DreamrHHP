@@ -1,9 +1,13 @@
-mutable struct SimpleVListGraph{V} <: AbstractGraph{V}
+mutable struct SimpleVListGraph{V} <: AbstractGraph{V,Edge{V}}
     vertices::Vector{V}
 end
 
+# function SimpleVListGraph(verts::Vector{V}) where V
+#     return SimpleVListGraph(verts)
+# end
+
 function Graphs.add_vertex!(g::SimpleVListGraph{V}, v::V) where V
-    push!(vertices, v)
+    push!(g.vertices, v)
 end
 
 
@@ -48,7 +52,7 @@ end
 function flight_edge_cost_nominal(u::CarDroneVertex, v::CarDroneVertex, d::Drone)
     dist::Float64 = point_dist(u.pos, v.pos)
     cost::Float64 = FLIGHT_COEFFICIENT*dist
-    if v.time_stamp < Inf:
+    if v.time_stamp < Inf
         # This is unlikely for now
         cost += TIME_COEFFICIENT*(v.time_stamp - u.time_stamp)
     else
