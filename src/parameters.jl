@@ -4,17 +4,25 @@ Collected here as a bunch of global variables with module-level scope
 Assume all are SI units?
 =#
 # Dynamics parameters
-const EPSILON = 0.0000001
+# REAL-WORLD
+const EPSILON = 0.00001
 const ACCELERATION_VALUES = linspace(-1.0,1.0,5) # M / s^2
-const DISTANCE_THRESHOLD = 1.0
+const HOP_DISTANCE_THRESHOLD = 1.0
 const XY_LIM = 30.0
 const XY_RES = 10.0
 const XYDOT_LIM = 4.0
 const XYDOT_RES = 1.0
 const HORIZON_LIM = 20
 const ACC_NOISE_STD = 0.1
-const MAX_DRONE_SPEED = 20.0
+const MAX_DRONE_SPEED = 5.6
 const MAX_CAR_SPEED = 35.0
+
+
+# UNIT GRID
+# const EPSILON = 0.0000001
+# const ACCELERATION_VALUES = linspace()
+# const DISTANCE_THRESHOLD = 0.0001
+# const XY_LIM
 
 # Sigma point weights
 const SIGMA_PT_ALPHA = 1.0

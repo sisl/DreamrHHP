@@ -157,7 +157,7 @@ function terminalreward(mdp::ControlledMultiRotorHopOnMDP, s::ControlledHopOnSta
 
     curr_pos = Point(s.rel_uavstate.x, s.rel_uavstate.y)
 
-    if point_norm(curr_pos) < DISTANCE_THRESHOLD
+    if point_norm(curr_pos) < HOP_DISTANCE_THRESHOLD
         return HOP_REWARD
     end
 
@@ -188,7 +188,7 @@ function terminalreward(mdp::ControlledMultiRotorHopOnMDP, s::ControlledHopOnSta
 
     curr_pos = Point(s.rel_uavstate.x, s.rel_uavstate.y)
 
-    if point_norm(curr_pos) < DISTANCE_THRESHOLD
+    if point_norm(curr_pos) < HOP_DISTANCE_THRESHOLD
         return HOP_REWARD
     end
 
