@@ -67,7 +67,36 @@ end
 # based on current position and average speed
 # I.E. the delays incorporate the speedup etc
 # If car crosses the next waypoint, remove the waypoint from the dict
-function advance_car_with_epoch!(car_route_dict::Dict(), avg_car_speed::Float64)
+function advance_car_with_epoch!(car_route_dict::Dict(), curr_time::Float64)
+    latest_passed_pos = copy(car_route_dict["pos"])
+    new_time = curr_time + EPOCH_DURATION
+    latest_passed_time = curr_time
+
+    sorted_route = sort(collect(car_route_dict["route"]), by=x->parse(Float64, x[1]))
+
+    for (id,timept) in sorted_route
+        if new_time > timept[2]
+            latest_passed_pos = copy(timept[1])
+            latest_passed_time = timept[2]
+            delete!(car_route_dict["route"],id)
+        else
+            break
+        end
+    end
+
+    # Generate a new point between latest passed pos and
+    # next route on path
+    sorted_route = sort(collect(car_route_dict["route"]), by=x->parse(Float64, x[1]))
+    next_car_pt = sorted_route[1][2][1] # TODO : Is this correct?
+    next_car_pt_time = sorted_route[1][2][2]
+    
+    # Generate new point in between latest and next
+    time_frac = (new_time - latest_passed_time)/(next_car_pt_time - latest_passed_time)
+
+    est_pos = SVector{2,Float64}(latest_passed_pos[1] + time_frac*(next_car_pt[1] - latest_passed_pos[1]),
+                                 latest_passed_pos[2] + time_frac*(next_car_pt[2] - latest_passed_pos[2]))
+    car_route_dict["pos"] = est_pos
+
 end
 
 # Generates 'pos' and 'route' for the first epoch that a car is active
@@ -81,24 +110,62 @@ function generate_initial_car_route(start_time::Float64, rng::RNG=Base.GLOBAL_RN
     end
 
     route_duration = rand(rng,Uniform(0.85*AVG_ROUTE_DURATION, 1.15*AVG_ROUTE_DURATION))
-
     avg_speed = point_dist(car_start_pos, car_goal_pos)/route_duration
-
-    route_num_waypts = convert(Int,rand(rng,Uniform(0.75*AVG_ROUTE_WAYPOINTS, 1.25*AVG_ROUTE_WAYPOINTS)))
 
     route_dict = Dict("pos"=>car_start_pos,"route"=>Dict())
 
     if rand(rng) < STRAIGHT_ROUTE_PROB
         # Straight line route
+        route_num_waypts = convert(Int,rand(rng,Uniform(0.75*AVG_ROUTE_WAYPOINTS, 1.25*AVG_ROUTE_WAYPOINTS)))
+
         route_waypts = interpolate_points_on_line(car_start_pos, car_goal_pos, route_num_waypts+1)
 
         for i = 1:route_num_waypts
             # Assume uniformly spread for now
             route_dict["route"][i] = [route_waypts[i+1],start_time + i*(route_duration/route_num_waypts)]
         end
+    else
+        # Generate an inflection point randomly between 5/12ths and 7/12ths of the route
+        inflec_frac = rand(rng,Uniform(5.0/12.0,7.0/12.0))
 
-        perturb_car_route_times!(start_time, route_dict, 1.0)
+        # Sample a point in a circle around the 
+        inflec_point = SVector{2,Float64}(car_start_pos[1] + inflec_frac*(car_goal_pos[1]-car_start_pos[1]),
+                                          car_start_pos[2] + inflec_frac*(car_goal_pos[2]-car_start_pos[2]))
+        # 
+        angle1 = atan2(car_goal_pos[2]-car_start_pos[2], car_goal_pos[1]-car_start_pos[1]) - pi/2
+        angle2 = atan2(car_goal_pos[2]-car_start_pos[2], car_goal_pos[1]-car_start_pos[1]) + pi/2
+
+        interm_point = SVector{2,Float64}(inflec_point[1] + 0.5*cos(angle1), inflec_point[2] + 0.5*sin(angle1))
+        if !inside_grid(interm_point)
+            interm_point = SVector{2,Float64}(inflec_point[1] + 0.5*cos(angle2), inflec_point[2] + 0.5*sin(angle2))
+        end
+
+        if !inside_grid(interm_point)
+            warn("Intermediate inflection logic incorrect! Both interms invalid.")
+            route_num_waypts = convert(Int,rand(rng,Uniform(0.75*AVG_ROUTE_WAYPOINTS, 1.25*AVG_ROUTE_WAYPOINTS)))
+
+            route_waypts = interpolate_points_on_line(car_start_pos, car_goal_pos, route_num_waypts+1)
+
+            for i = 1:route_num_waypts
+                # Assume uniformly spread for now
+                route_dict["route"][i] = [route_waypts[i+1],start_time + i*(route_duration/route_num_waypts)]
+            end
+        else
+            route_num_waypts = convert(Int,(point_dist(car_start_pos,interm_point) + point_dist(interm_point, car_goal_pos))/avg_speed)
+            route_waypts = interpolate_points_on_line(car_start_pos, interm_point, convert(Int,point_dist(car_start_pos,interm_point)/avg_speed))
+
+            # rmeove last way point
+            pop!(route_waypts)
+            route_waypts = vcat(route_waypts, 
+                interpolate_points_on_line(interm_point, car_goal_pos, convert(Int,point_dist(interm_point, car_goal_pos)/avg_speed)))
+
+            for i = 1:length(route_waypts)-1
+                route_dict["route"][i] = [route_waypts[i+1],start_time + i*(route_duration/route_num_waypts)]
+            end
+        end
     end
+
+    perturb_car_route_times!(start_time, route_dict, 1.0)
 
     return route_dict, avg_speed
 end    
