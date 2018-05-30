@@ -1,4 +1,6 @@
 using Distributions
+using StaticArrays
+using Plots
 #=
 This script generates episodes for cars with no misses and bounded delays (of unknown bounds)
 It assumes that the environment is [-1,-1] to [1,1] and the start position of the drone is always
@@ -17,7 +19,7 @@ const EPISODE_DURATION = 1800.0
 const EPOCH_DURATION = 5.0
 const START_GOAL_MINDIST = 1.0
 const ROUTE_MIN_LENGTH = 1.4159
-const STRAIGHT_ROUTE_PROB = 0.75 # Probability that car route will be a straight line, else L shaped
+const STRAIGHT_ROUTE_PROB = 0.6 # Probability that car route will be a straight line, else L shaped
 const MODIFY_WAYPT_PROB = 0.3
 
 
@@ -25,6 +27,7 @@ const MODIFY_WAYPT_PROB = 0.3
 function inside_grid(p::SVector{2,Float64})
     if p[1] <= -1.0 || p[1] >= 1.0 || p[2] <= -1.0 || p[2] >= 1.0
         return false
+    end
     return true
 end
 
@@ -50,10 +53,10 @@ function interpolate_points_on_line(first_pos::SVector{2,Float64}, last_pos::SVe
 end
 
 # This is always for the about-to-happen epoch so time was advanced prior to this
-function perturb_car_route_times!(curr_time::Float64, car_route_dict::Dict, perturb_prob::Float64=MODIFY_WAYPT_PROB, rng::RNG=Base.GLOBAL_RNG) where {RNG <: AbstractRNG}
+function perturb_car_route_times!(curr_time::Float64, car_ep_dict::Dict, perturb_prob::Float64=MODIFY_WAYPT_PROB, rng::RNG=Base.GLOBAL_RNG) where {RNG <: AbstractRNG}
 
     # Modify each way point expected time with the probability
-    route = car_route_dict["route"]
+    route = car_ep_dict["route"]
 
     for (idx,timept) in route
         if rand(rng) < perturb_prob && (timept[2]-curr_time) > 2.0*EPOCH_DURATION
@@ -67,36 +70,39 @@ end
 # based on current position and average speed
 # I.E. the delays incorporate the speedup etc
 # If car crosses the next waypoint, remove the waypoint from the dict
-function advance_car_with_epoch!(car_route_dict::Dict(), curr_time::Float64)
-    latest_passed_pos = copy(car_route_dict["pos"])
+function advance_cars_with_epoch!(car_ep_dict::Dict, curr_time::Float64)
+    latest_passed_pos = copy(car_ep_dict["pos"])
     new_time = curr_time + EPOCH_DURATION
     latest_passed_time = curr_time
 
-    sorted_route = sort(collect(car_route_dict["route"]), by=x->parse(Float64, x[1]))
+    sorted_route = sort(collect(car_ep_dict["route"]), by=x-> x[1])
 
     for (id,timept) in sorted_route
         if new_time > timept[2]
             latest_passed_pos = copy(timept[1])
             latest_passed_time = timept[2]
-            delete!(car_route_dict["route"],id)
+            delete!(car_ep_dict["route"],id)
         else
             break
         end
     end
 
-    # Generate a new point between latest passed pos and
-    # next route on path
-    sorted_route = sort(collect(car_route_dict["route"]), by=x->parse(Float64, x[1]))
-    next_car_pt = sorted_route[1][2][1] # TODO : Is this correct?
-    next_car_pt_time = sorted_route[1][2][2]
-    
-    # Generate new point in between latest and next
-    time_frac = (new_time - latest_passed_time)/(next_car_pt_time - latest_passed_time)
+    if length(car_ep_dict["route"]) == 0
+        car_ep_dict["route"] = nothing
+    else
+        # Generate a new point between latest passed pos and
+        # next route on path
+        sorted_route = sort(collect(car_ep_dict["route"]), by=x->x[1])
+        next_car_pt = sorted_route[1][2][1] # TODO : Is this correct?
+        next_car_pt_time = sorted_route[1][2][2]
+        
+        # Generate new point in between latest and next
+        time_frac = (new_time - latest_passed_time)/(next_car_pt_time - latest_passed_time)
 
-    est_pos = SVector{2,Float64}(latest_passed_pos[1] + time_frac*(next_car_pt[1] - latest_passed_pos[1]),
-                                 latest_passed_pos[2] + time_frac*(next_car_pt[2] - latest_passed_pos[2]))
-    car_route_dict["pos"] = est_pos
-
+        est_pos = SVector{2,Float64}(latest_passed_pos[1] + time_frac*(next_car_pt[1] - latest_passed_pos[1]),
+                                     latest_passed_pos[2] + time_frac*(next_car_pt[2] - latest_passed_pos[2]))
+        car_ep_dict["pos"] = est_pos
+    end
 end
 
 # Generates 'pos' and 'route' for the first epoch that a car is active
@@ -110,14 +116,12 @@ function generate_initial_car_route(start_time::Float64, rng::RNG=Base.GLOBAL_RN
     end
 
     route_duration = rand(rng,Uniform(0.85*AVG_ROUTE_DURATION, 1.15*AVG_ROUTE_DURATION))
-    avg_speed = point_dist(car_start_pos, car_goal_pos)/route_duration
+    route_num_waypts = convert(Int,round(rand(rng,Uniform(0.75*AVG_ROUTE_WAYPOINTS, 1.25*AVG_ROUTE_WAYPOINTS))))
 
     route_dict = Dict("pos"=>car_start_pos,"route"=>Dict())
 
     if rand(rng) < STRAIGHT_ROUTE_PROB
         # Straight line route
-        route_num_waypts = convert(Int,rand(rng,Uniform(0.75*AVG_ROUTE_WAYPOINTS, 1.25*AVG_ROUTE_WAYPOINTS)))
-
         route_waypts = interpolate_points_on_line(car_start_pos, car_goal_pos, route_num_waypts+1)
 
         for i = 1:route_num_waypts
@@ -125,8 +129,9 @@ function generate_initial_car_route(start_time::Float64, rng::RNG=Base.GLOBAL_RN
             route_dict["route"][i] = [route_waypts[i+1],start_time + i*(route_duration/route_num_waypts)]
         end
     else
+        warn("L-shaped route")
         # Generate an inflection point randomly between 5/12ths and 7/12ths of the route
-        inflec_frac = rand(rng,Uniform(5.0/12.0,7.0/12.0))
+        inflec_frac = rand(rng,Uniform(1/3,2/3))
 
         # Sample a point in a circle around the 
         inflec_point = SVector{2,Float64}(car_start_pos[1] + inflec_frac*(car_goal_pos[1]-car_start_pos[1]),
@@ -142,7 +147,6 @@ function generate_initial_car_route(start_time::Float64, rng::RNG=Base.GLOBAL_RN
 
         if !inside_grid(interm_point)
             warn("Intermediate inflection logic incorrect! Both interms invalid.")
-            route_num_waypts = convert(Int,rand(rng,Uniform(0.75*AVG_ROUTE_WAYPOINTS, 1.25*AVG_ROUTE_WAYPOINTS)))
 
             route_waypts = interpolate_points_on_line(car_start_pos, car_goal_pos, route_num_waypts+1)
 
@@ -151,13 +155,13 @@ function generate_initial_car_route(start_time::Float64, rng::RNG=Base.GLOBAL_RN
                 route_dict["route"][i] = [route_waypts[i+1],start_time + i*(route_duration/route_num_waypts)]
             end
         else
-            route_num_waypts = convert(Int,(point_dist(car_start_pos,interm_point) + point_dist(interm_point, car_goal_pos))/avg_speed)
-            route_waypts = interpolate_points_on_line(car_start_pos, interm_point, convert(Int,point_dist(car_start_pos,interm_point)/avg_speed))
+            avg_speed = point_dist(car_start_pos, car_goal_pos)/route_num_waypts
+            route_waypts = interpolate_points_on_line(car_start_pos, interm_point, convert(Int,round(point_dist(car_start_pos,interm_point)/avg_speed)))
 
             # rmeove last way point
             pop!(route_waypts)
             route_waypts = vcat(route_waypts, 
-                interpolate_points_on_line(interm_point, car_goal_pos, convert(Int,point_dist(interm_point, car_goal_pos)/avg_speed)))
+                interpolate_points_on_line(interm_point, car_goal_pos, convert(Int,round(point_dist(interm_point, car_goal_pos)/avg_speed))))
 
             for i = 1:length(route_waypts)-1
                 route_dict["route"][i] = [route_waypts[i+1],start_time + i*(route_duration/route_num_waypts)]
@@ -167,13 +171,16 @@ function generate_initial_car_route(start_time::Float64, rng::RNG=Base.GLOBAL_RN
 
     perturb_car_route_times!(start_time, route_dict, 1.0)
 
-    return route_dict, avg_speed
+    return route_dict
 end    
 
 
 function generate_episode_dict_unitgrid(min_cars::Int, max_cars::Int,rng::RNG=Base.GLOBAL_RNG) where {RNG <: AbstractRNG}
 
-    num_epochs = convert(Int64,(EPISODE_DURATION/EPOCH_DURATION))
+    num_epochs = convert(Int,round((EPISODE_DURATION/EPOCH_DURATION)+1))
+    num_total_cars = rand(rng, min_cars:max_cars)
+    num_added_cars = 0
+
 
     # Start is always 0.0
     start_pos = SVector{2,Float64}(0.0,0.0)
@@ -189,4 +196,70 @@ function generate_episode_dict_unitgrid(min_cars::Int, max_cars::Int,rng::RNG=Ba
 
     epoch_time = 0.0
 
-    for epoch_idx = 1:num_epochs
+    # Start off with 2/3rds of the cars and then just add randomly
+    cars_to_add = convert(Int, round(0.67*num_total_cars))
+
+    curr_epoch_dict = Dict("time"=>0.0, "car-info"=>Dict())
+
+    for i=1:cars_to_add
+        num_added_cars += 1
+        curr_epoch_dict["car-info"][string("car-",num_added_cars)] = generate_initial_car_route(epoch_time)
+    end
+
+    episode_dict["epochs"][1] = curr_epoch_dict
+
+    for epoch_idx = 2:num_epochs
+        
+        # First advance existing cars with new epoch
+        # TODO - Are we handling times correctly here
+        for car_id in collect(keys(curr_epoch_dict["car-info"]))
+            advance_cars_with_epoch!(curr_epoch_dict["car-info"][car_id],epoch_time)
+        end
+
+        # Advance time for curr_epoch_dict
+        epoch_time += EPOCH_DURATION
+        curr_epoch_dict["time"] = epoch_time
+
+        # Perturb the times over the rest of the route
+        for car_id in collect(keys(curr_epoch_dict["car-info"]))
+            perturb_car_route_times(epoch_time, curr_epoch_dict["car-info"][car_id])
+        end
+
+        # Now add cars (based on coin flip)
+        cars_to_add = 0
+        # Based on a coin flip randomly add some cars
+        if (rand(rng,Uniform(0.1)) > 0.5)
+            remaining_cars_perep = convert(Float64,(num_total_cars - num_added_cars)/(num_epochs - epoch_idx))
+            if remaining_cars_perep > 0.0
+                cars_to_add = convert(Int,round(Uniform(0.0,2.0*remaining_cars_perep)))
+            end
+        end
+
+        # Now add cars
+        for i = 1:cars_to_add
+            num_added_cars += 1
+            curr_epoch_dict["car-info"][string("car-",num_added_cars)] = generate_initial_car_route(epoch_time)
+        end
+    
+        episode_dict["epochs"][epoch_idx] = curr_epoch_dict
+
+    end
+
+    return episode_dict
+end
+
+# DEBUGGING
+function plot_car_route(car_ep_dict::Dict)
+
+    curr_pos = car_ep_dict["pos"]
+    car_route_dict = car_ep_dict["route"]
+
+    sorted_route = sort(collect(car_route_dict),by=x->x[1])
+
+    pts_x = [timept[1][1] for (_,timept) in sorted_route]
+    pts_y = [timept[1][2] for (_,timept) in sorted_route]
+
+    plot(pts_x, pts_y, markershape = :hexagon, markercolor =:blue)
+    plot!([curr_pos[1]], [curr_pos[2]], markershape =:hexagon, markercolor =:red)
+
+end
