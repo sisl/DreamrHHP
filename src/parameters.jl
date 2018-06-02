@@ -5,24 +5,33 @@ Assume all are SI units?
 =#
 # Dynamics parameters
 # REAL-WORLD
-const EPSILON = 0.00001
-const ACCELERATION_VALUES = linspace(-1.0,1.0,5) # M / s^2
-const HOP_DISTANCE_THRESHOLD = 1.0
-const XY_LIM = 30.0
-const XY_RES = 10.0
-const XYDOT_LIM = 4.0
-const XYDOT_RES = 1.0
-const HORIZON_LIM = 20
-const ACC_NOISE_STD = 0.1
-const MAX_DRONE_SPEED = 5.6
-const MAX_CAR_SPEED = 35.0
+# const EPSILON = 0.00001
+# const ACCELERATION_LIM = 1.0
+# const ACCELERATION_VALS = 7
+# const HOP_DISTANCE_THRESHOLD = 1.0
+# const XY_LIM = 30.0
+# const XY_AXISVALS = 7
+# const XYDOT_LIM = 4.0
+# const XYDOT_AXISVALS = 9
+# const HORIZON_LIM = 20
+# const ACC_NOISE_STD = 0.1
+# const MAX_DRONE_SPEED = 5.6
+# const MAX_CAR_SPEED = 20.0
 
 
 # UNIT GRID
-# const EPSILON = 0.0000001
-# const ACCELERATION_VALUES = linspace()
-# const DISTANCE_THRESHOLD = 0.0001
-# const XY_LIM
+const EPSILON = 0.0000001
+const ACCELERATION_LIM = 0.0001
+const ACCELERATION_NUMVALS = 11
+const HOP_DISTANCE_THRESHOLD = 0.001
+const XY_LIM = 0.1
+const XY_AXISVALS = 9
+const XYDOT_LIM = 0.0005
+const XYDOT_AXISVALS = 9 
+const HORIZON_LIM = 30
+const ACC_NOISE_STD = 0.000005
+const MAX_DRONE_SPEED = 0.0015
+const MAX_CAR_SPEED = 0.003
 
 # Sigma point weights
 const SIGMA_PT_ALPHA = 1.0

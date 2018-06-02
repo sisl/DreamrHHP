@@ -105,8 +105,9 @@ end
 function dynamics_cost(model::MultiRotorUAVDynamicsModel, state::MultiRotorUAVState, next_state::MultiRotorUAVState)
     old_point::Point = Point(state.x, state.y)
     new_point::Point = Point(next_state.x, next_state.y)
-
     dyn_dist = point_dist(old_point, new_point)
+
+    cost = 0.0
 
     if dyn_dist < EPSILON && sqrt(next_state.xdot^2 + next_state.ydot^2) < EPSILON
         cost += HOVER_COEFFICIENT*model.timestep

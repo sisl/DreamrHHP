@@ -13,13 +13,14 @@ The range of cars in the episode is specified as a command line argument. Roughl
 are introduced in the first 10 minutes, 1/6th of the cars in the next 10 minutes, and 1/6th of the cars
 in the final 10 minutes.
 =#
-const AVG_ROUTE_DURATION = 1200.0 # seconds
-const AVG_ROUTE_WAYPOINTS = 20
+const AVG_ROUTE_DURATION = 900.0 # seconds
+const AVG_ROUTE_WAYPOINTS = 15
 const EPISODE_DURATION = 1800.0
 const EPOCH_DURATION = 5.0
 const START_GOAL_MINDIST = 1.0
-const ROUTE_MIN_LENGTH = 1.4159
-const STRAIGHT_ROUTE_PROB = 0.6 # Probability that car route will be a straight line, else L shaped
+const ROUTE_MIN_LENGTH = 0.2
+const ROUTE_MAX_LENGTH = 1.4159
+const STRAIGHT_ROUTE_PROB = 0.5 # Probability that car route will be a straight line, else L shaped
 const MODIFY_WAYPT_PROB = 0.3
 
 
@@ -71,6 +72,11 @@ end
 # I.E. the delays incorporate the speedup etc
 # If car crosses the next waypoint, remove the waypoint from the dict
 function advance_cars_with_epoch!(car_ep_dict::Dict, curr_time::Float64)
+
+    if car_ep_dict["route"] == nothing
+        return
+    end
+
     latest_passed_pos = copy(car_ep_dict["pos"])
     new_time = curr_time + EPOCH_DURATION
     latest_passed_time = curr_time
@@ -111,11 +117,14 @@ function generate_initial_car_route(start_time::Float64, rng::RNG=Base.GLOBAL_RN
     car_start_pos = rand_unif_grid_pt(rng)
 
     car_goal_pos = rand_unif_grid_pt(rng)
-    while point_dist(car_start_pos, car_goal_pos) < ROUTE_MIN_LENGTH
+    route_length = point_dist(car_start_pos, car_goal_pos)
+    while route_length < ROUTE_MIN_LENGTH || route_length > ROUTE_MAX_LENGTH
         car_goal_pos = rand_unif_grid_pt(rng)
+        route_length = point_dist(car_start_pos, car_goal_pos)
     end
 
     route_duration = rand(rng,Uniform(0.85*AVG_ROUTE_DURATION, 1.15*AVG_ROUTE_DURATION))
+    println(route_length/route_duration)
     route_num_waypts = convert(Int,round(rand(rng,Uniform(0.75*AVG_ROUTE_WAYPOINTS, 1.25*AVG_ROUTE_WAYPOINTS))))
 
     route_dict = Dict("pos"=>car_start_pos,"route"=>Dict())
@@ -140,9 +149,9 @@ function generate_initial_car_route(start_time::Float64, rng::RNG=Base.GLOBAL_RN
         angle1 = atan2(car_goal_pos[2]-car_start_pos[2], car_goal_pos[1]-car_start_pos[1]) - pi/2
         angle2 = atan2(car_goal_pos[2]-car_start_pos[2], car_goal_pos[1]-car_start_pos[1]) + pi/2
 
-        interm_point = SVector{2,Float64}(inflec_point[1] + 0.5*cos(angle1), inflec_point[2] + 0.5*sin(angle1))
+        interm_point = SVector{2,Float64}(inflec_point[1] + 0.5*route_length*cos(angle1), inflec_point[2] + 0.5*route_length*sin(angle1))
         if !inside_grid(interm_point)
-            interm_point = SVector{2,Float64}(inflec_point[1] + 0.5*cos(angle2), inflec_point[2] + 0.5*sin(angle2))
+            interm_point = SVector{2,Float64}(inflec_point[1] + 0.5*route_length*cos(angle2), inflec_point[2] + 0.5*route_length*sin(angle2))
         end
 
         if !inside_grid(interm_point)
@@ -155,7 +164,7 @@ function generate_initial_car_route(start_time::Float64, rng::RNG=Base.GLOBAL_RN
                 route_dict["route"][i] = [route_waypts[i+1],start_time + i*(route_duration/route_num_waypts)]
             end
         else
-            avg_speed = point_dist(car_start_pos, car_goal_pos)/route_num_waypts
+            avg_speed = route_length/route_num_waypts
             route_waypts = interpolate_points_on_line(car_start_pos, interm_point, convert(Int,round(point_dist(car_start_pos,interm_point)/avg_speed)))
 
             # rmeove last way point
@@ -221,17 +230,19 @@ function generate_episode_dict_unitgrid(min_cars::Int, max_cars::Int,rng::RNG=Ba
         curr_epoch_dict["time"] = epoch_time
 
         # Perturb the times over the rest of the route
-        for car_id in collect(keys(curr_epoch_dict["car-info"]))
-            perturb_car_route_times(epoch_time, curr_epoch_dict["car-info"][car_id])
+        for (car_id,car_ep_dict) in curr_epoch_dict["car-info"]
+            if car_ep_dict["route"] != nothing
+                perturb_car_route_times!(epoch_time, car_ep_dict)
+            end
         end
 
         # Now add cars (based on coin flip)
         cars_to_add = 0
         # Based on a coin flip randomly add some cars
-        if (rand(rng,Uniform(0.1)) > 0.5)
-            remaining_cars_perep = convert(Float64,(num_total_cars - num_added_cars)/(num_epochs - epoch_idx))
+        if (rand(rng,Uniform(0,1)) > 0.5)
+            remaining_cars_perep = convert(Float64,(num_total_cars - num_added_cars)/(num_epochs+1 - epoch_idx))
             if remaining_cars_perep > 0.0
-                cars_to_add = convert(Int,round(Uniform(0.0,2.0*remaining_cars_perep)))
+                cars_to_add = convert(Int,round(rand(rng,Uniform(0.0,min(1.0,2.0*remaining_cars_perep)))))
             end
         end
 
@@ -262,4 +273,27 @@ function plot_car_route(car_ep_dict::Dict)
     plot(pts_x, pts_y, markershape = :hexagon, markercolor =:blue)
     plot!([curr_pos[1]], [curr_pos[2]], markershape =:hexagon, markercolor =:red)
 
+end
+
+function plot_all_active_cars_epoch(epoch_dict::Dict)
+
+    car_info_dict = epoch_dict["car-info"]
+    
+    plot()
+
+    for (car_id,car_ep_dict) in car_info_dict
+        if car_ep_dict["route"] != nothing
+            curr_pos = car_ep_dict["pos"]
+            car_route_dict = car_ep_dict["route"]
+            sorted_route = sort(collect(car_route_dict),by=x->x[1])
+
+            pts_x = [timept[1][1] for (_,timept) in sorted_route]
+            pts_y = [timept[1][2] for (_,timept) in sorted_route]
+
+            plot!(pts_x, pts_y, markershape = :hexagon,label=car_id)
+            plot!([curr_pos[1]], [curr_pos[2]], markershape =:hexagon, markercolor =:red,leg=false)
+        end
+    end
+
+    # savefig("carsfig.png")
 end

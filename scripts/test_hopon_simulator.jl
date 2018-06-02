@@ -8,22 +8,22 @@ using StaticArrays
 using JLD
 using Distributions
 
-using hitchhiking_drones
+using HitchhikingDrones
 
 function POMDPs.convert_s(::Type{V} where V <: AbstractVector{Float64}, s::ControlledHopOnStateAugmented, mdp::ControlledMultiRotorHopOnMDP)
-    v = SVector{6,Float64}(s.uavstate.x, s.uavstate.y, s.uavstate.xdot, s.uavstate.ydot,
-                           convert(Float64,s.control_transfer), convert(Float64,s.horizon))
-    return v
+  v = SVector{6,Float64}(s.rel_uavstate.x, s.rel_uavstate.y, s.rel_uavstate.xdot, s.rel_uavstate.ydot,
+                         convert(Float64,s.control_transfer), convert(Float64,s.horizon))
+  return v
 end
 
 function POMDPs.convert_s(::Type{ControlledHopOnStateAugmented}, v::AbstractVector{Float64}, mdp::ControlledMultiRotorHopOnMDP)
-    s = ControlledHopOnStateAugmented(MultiRotorUAVState(v[1],v[2],v[3],v[4]),convert(Bool,v[5]), convert(Int64,v[6]))
-    return s
+  s = ControlledHopOnStateAugmented(MultiRotorUAVState(v[1],v[2],v[3],v[4]),convert(Bool,v[5]), convert(Int64,v[6]))
+  return s
 end
 
 
 # LOAD POLICY HERE - SWAP OUT AS NEEDED
-hopon_policy = load("hopon_policy_sigmapt_paramset1.jld","policy")
+hopon_policy = load("hopon_generative_unitgrid_paramset2.jld","policy")
 
 rng = MersenneTwister(2)
 NUM_EPISODES = 10
@@ -56,7 +56,7 @@ for i = 1:NUM_EPISODES
 
         time_to_finish_prob = zeros(HORIZON_LIM+2)
         for j = 1:MC_TIME_NUMSAMPLES
-            tval::Float64 = sample_finish_time(sim)
+            tval::Float64 = sample_finish_time(sim)/MDP_TIMESTEP
             if tval >= HORIZON_LIM
                 time_to_finish_prob[end] += 1.0
             else
@@ -89,7 +89,7 @@ for i = 1:NUM_EPISODES
                 time_prob = time_to_finish_prob[hor+1]
 
                 if time_prob > 0.0
-                    aug_inhor_state::ControlledHopOnStateAugmented = ControlledHopOnStateAugmented(curr_state.uavstate,
+                    aug_inhor_state::ControlledHopOnStateAugmented = ControlledHopOnStateAugmented(curr_state.rel_uavstate,
                                                                                              curr_state.control_transfer,hor)
                     action_values[iaction] += time_prob*action_value(hopon_policy.in_horizon_policy, aug_inhor_state, a)
                 end
@@ -98,7 +98,7 @@ for i = 1:NUM_EPISODES
             # For horizon HOR_LIM + 1, augment state with horizon 0 and lookup action value from out_hor policy
             time_prob = time_to_finish_prob[end]
             if time_prob > 0.0
-                aug_outhor_state::ControlledHopOnStateAugmented = ControlledHopOnStateAugmented(curr_state.uavstate,
+                aug_outhor_state::ControlledHopOnStateAugmented = ControlledHopOnStateAugmented(curr_state.rel_uavstate,
                                                                                                 curr_state.control_transfer,0.)
                 action_values[iaction] += time_prob*action_value(hopon_policy.out_horizon_policy,aug_outhor_state,a)
             end
@@ -121,7 +121,7 @@ for i = 1:NUM_EPISODES
 
         # Break if done
         if is_done
-            curr_rel_pos = Point(curr_state.uavstate.x, curr_state.uavstate.y)
+            curr_rel_pos = Point(curr_state.rel_uavstate.x, curr_state.rel_uavstate.y)
             if point_norm(curr_rel_pos) < HOP_DISTANCE_THRESHOLD
                 reward += HOP_REWARD
                 is_success = 1
@@ -137,8 +137,8 @@ for i = 1:NUM_EPISODES
             break
         end
 
-        # print("Press something to continue")
-        # readline()
+        print("Press something to continue")
+        readline()
 
     end # while
 

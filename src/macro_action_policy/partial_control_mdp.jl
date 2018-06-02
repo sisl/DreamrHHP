@@ -2,17 +2,15 @@ importall POMDPs
 # This is the controlled state space of the UAV when it is planning
 # to track the car and hop on to it. It must try to reach the goal 
 # position at or before the car reaches it
-mutable struct ControlledHopOnStateAugmented{US <: UAVState}
+mutable struct ControlledHopOnStateAugmented
     # States pertaining to this subproblem
-    rel_uavstate::US # RELATIVE to goal
+    rel_uavstate::US where {US <: UAVState}# RELATIVE to goal
     control_transfer::Bool
     horizon::Int64 # POMDPs.jl has no explicit interface for finite horizon problems
-
-    # TODO : Add global constraint states - energy, time etc.
 end
 
-mutable struct ControlledHopOnState{US <: UAVState}
-    rel_uavstate::US # RELATIVE to goal
+mutable struct ControlledHopOnState
+    rel_uavstate::US where {US<:UAVState} # RELATIVE to goal
     control_transfer::Bool
 end
 
@@ -25,9 +23,9 @@ end
 
 
 # NOTE
-mutable struct HopOnAction{UA <: UAVAction}
+mutable struct HopOnAction
     action_idx::Int64
-    uavaction::Union{Void,UA}
+    uavaction::Union{Void,UA} where {UA <: UAVAction}
     control_transfer::Union{Void,Bool}
 end
 
@@ -110,9 +108,11 @@ function ControlledMultiRotorHopOnMDP(dynamics::MultiRotorUAVDynamicsModel)
 
     multi_rotor_hopon_actions = Vector{HopOnAction}()
     idx::Int64 = 1
+
+    acc_vals = linspace(-ACCELERATION_LIM,ACCELERATION_LIM,ACCELERATION_NUMVALS)
     
-    for xddot in ACCELERATION_VALUES
-        for yddot in ACCELERATION_VALUES
+    for xddot in acc_vals
+        for yddot in acc_vals
             push!(multi_rotor_hopon_actions,HopOnAction(idx,MultiRotorUAVAction(xddot,yddot),nothing))
             idx+=1
         end

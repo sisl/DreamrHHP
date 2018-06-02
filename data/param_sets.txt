@@ -1,6 +1,6 @@
 ######################## SIMPLE HOPON PARAMS ################################
 
-## SET 1
+############################ SET 1
 const EPSILON = 0.0000001
 const ACCELERATION_VALUES = linspace(-1.0,1.0,5) # M / s^2
 const HOP_DISTANCE_THRESHOLD = 1.0
@@ -34,4 +34,42 @@ const DELAY_SPEEDUP_PROB = 0.2
 const MAX_DELAY_SPEEDUP = 2.0*MDP_TIMESTEP
 
 
-# SET 2
+########################## SET 2 - UNITGRID
+# const EPSILON = 0.00000001
+# const ACCELERATION_LIM = 0.0005
+# const ACCELERATION_VALS = 7
+# const HOP_DISTANCE_THRESHOLD = 0.00001
+# const XY_LIM = 0.2
+# const XY_AXISVALS = 9
+# const XYDOT_LIM = 0.0007
+# const XYDOT_AXISVALS = 9 
+# const HORIZON_LIM = 30
+# const ACC_NOISE_STD = 0.00005
+# const MAX_DRONE_SPEED = 0.001
+# const MAX_CAR_SPEED = 0.002
+
+# Sigma point weights
+const SIGMA_PT_ALPHA = 1.0
+const SIGMA_PT_KAPPA = 1.0
+
+# System freq parameters
+const MDP_TIMESTEP = 5.0
+const OPENLOOP_DURATION = 30.0
+const WAYPT_TIME_CHANGE_THRESHOLD = MDP_TIMESTEP/2.0
+
+
+# Cost parameters
+const FLIGHT_COEFFICIENT = 1.0
+const TIME_COEFFICIENT = 0.5
+const HOP_COEFFICIENT = 10.0
+const HOVER_COEFFICIENT = 1.0
+const HOP_REWARD = 100.0
+const CONTROL_TRANSFER_PENALTY = 100.0
+const INVALID_ACTION_PENALTY = 10.0 # For the real simulator
+const SUCCESS_REWARD = 1000.0 # For the real simulator
+const VALID_FLIGHT_EDGE_DIST_RATIO = 1.2 # The minimum ratio between dist of a flight edge and (max_speed*time_diff)
+
+# Additional simulator parameters - UNKNOWN to agent
+const CAR_TIME_STD = MDP_TIMESTEP/2.0
+const DELAY_SPEEDUP_PROB = 0.2
+const MAX_DELAY_SPEEDUP = 2.0*MDP_TIMESTEP
