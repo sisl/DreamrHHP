@@ -2,6 +2,7 @@ using JSON
 
 
 mutable struct SDMCState{US <: UAVState}
+    drone::Drone
     uav_state::US
     on_car::Bool
     on_car_id::String

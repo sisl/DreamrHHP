@@ -35,18 +35,19 @@ const MAX_DELAY_SPEEDUP = 2.0*MDP_TIMESTEP
 
 
 ########################## SET 2 - UNITGRID
-# const EPSILON = 0.00000001
-# const ACCELERATION_LIM = 0.0005
-# const ACCELERATION_VALS = 7
-# const HOP_DISTANCE_THRESHOLD = 0.00001
-# const XY_LIM = 0.2
-# const XY_AXISVALS = 9
-# const XYDOT_LIM = 0.0007
-# const XYDOT_AXISVALS = 9 
-# const HORIZON_LIM = 30
-# const ACC_NOISE_STD = 0.00005
-# const MAX_DRONE_SPEED = 0.001
-# const MAX_CAR_SPEED = 0.002
+# UNIT GRID
+const EPSILON = 0.0000001
+const ACCELERATION_LIM = 0.0002
+const ACCELERATION_NUMVALS = 7
+const HOP_DISTANCE_THRESHOLD = 0.001
+const XY_LIM = 0.1
+const XY_AXISVALS = 15
+const XYDOT_LIM = 0.002
+const XYDOT_AXISVALS = 9 
+const HORIZON_LIM = 30
+const ACC_NOISE_STD = 0.00001
+const MAX_DRONE_SPEED = 0.00285
+const MAX_CAR_SPEED = 0.005
 
 # Sigma point weights
 const SIGMA_PT_ALPHA = 1.0
@@ -72,4 +73,5 @@ const VALID_FLIGHT_EDGE_DIST_RATIO = 1.2 # The minimum ratio between dist of a f
 # Additional simulator parameters - UNKNOWN to agent
 const CAR_TIME_STD = MDP_TIMESTEP/2.0
 const DELAY_SPEEDUP_PROB = 0.2
+const MAX_DELAY_SPEEDUP = 2.0*MDP_TIMESTEP
 const MAX_DELAY_SPEEDUP = 2.0*MDP_TIMESTEP

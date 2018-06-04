@@ -41,6 +41,7 @@ end
 
 function HopOffMDP()
     hopoff_actions = [HopOffAction(1,STAY), HopOffAction(2,HOPOFF)]
+    return HopOffMDP(hopoff_actions)
 end
 
 actions(mdp::HopOffMDP) = mdp.actions
@@ -96,6 +97,16 @@ mutable struct PartialControlHopOnOffPolicy
     in_horizon_policy::LocalApproximationValueIterationPolicy
     out_horizon_policy::LocalApproximationValueIterationPolicy
     action_map::Vector
+end
+
+function POMDPs.convert_s(::Type{V} where V <: AbstractVector{Float64}, s::HopOffStateAugmented, mdp::HopOffMDP)
+  v = SVector{2,Float64}(convert(Float64,s.oncar), convert(Float64,s.horizon))
+  return v
+end
+
+function POMDPs.convert_s(::Type{HopOffStateAugmented}, v::AbstractVector{Float64}, mdp::HopOffMDP)
+  s = HopOffStateAugmented(convert(Bool,v[1]), convert(Int64,v[2]))
+  return s
 end
 
 ######################## MULTI ROTOR MDP ##########################
@@ -295,4 +306,16 @@ function generate_start_state(mdp::ControlledMultiRotorHopOnMDP, rng::RNG=Base.G
     uav_startstate = generate_start_state(mdp.dynamics)
 
     return ControlledHopOnState(uav_startstate,false)
+end
+
+# State conversion functions
+function POMDPs.convert_s(::Type{V} where V <: AbstractVector{Float64}, s::ControlledHopOnStateAugmented, mdp::ControlledMultiRotorHopOnMDP)
+  v = SVector{6,Float64}(s.rel_uavstate.x, s.rel_uavstate.y, s.rel_uavstate.xdot, s.rel_uavstate.ydot,
+                         convert(Float64,s.control_transfer), convert(Float64,s.horizon))
+  return v
+end
+
+function POMDPs.convert_s(::Type{ControlledHopOnStateAugmented}, v::AbstractVector{Float64}, mdp::ControlledMultiRotorHopOnMDP)
+  s = ControlledHopOnStateAugmented(MultiRotorUAVState(v[1],v[2],v[3],v[4]),convert(Bool,v[5]), convert(Int64,v[6]))
+  return s
 end

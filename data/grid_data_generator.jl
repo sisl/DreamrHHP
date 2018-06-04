@@ -1,6 +1,7 @@
 using Distributions
 using StaticArrays
 using Plots
+using JSON
 #=
 This script generates episodes for cars with no misses and bounded delays (of unknown bounds)
 It assumes that the environment is [-1,-1] to [1,1] and the start position of the drone is always
@@ -296,4 +297,17 @@ function plot_all_active_cars_epoch(epoch_dict::Dict)
     end
 
     # savefig("carsfig.png")
+end
+
+
+# Script level code
+# Arguments are <min-cars> <max-cars> <file-name>
+min_cars = parse(Int,ARGS[1])
+max_cars = parse(Int, ARGS[2])
+filename = ARGS[3]
+
+ep_dict = generate_episode_dict_unitgrid(min_cars, max_cars)
+
+open(filename,"w") do f
+    JSON.print(f,ep_dict)
 end

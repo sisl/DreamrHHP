@@ -9,22 +9,10 @@ using JLD
 
 using HitchhikingDrones
 
-# State conversion functions
-function POMDPs.convert_s(::Type{V} where V <: AbstractVector{Float64}, s::ControlledHopOnStateAugmented, mdp::ControlledMultiRotorHopOnMDP)
-  v = SVector{6,Float64}(s.rel_uavstate.x, s.rel_uavstate.y, s.rel_uavstate.xdot, s.rel_uavstate.ydot,
-                         convert(Float64,s.control_transfer), convert(Float64,s.horizon))
-  return v
-end
-
-function POMDPs.convert_s(::Type{ControlledHopOnStateAugmented}, v::AbstractVector{Float64}, mdp::ControlledMultiRotorHopOnMDP)
-  s = ControlledHopOnStateAugmented(MultiRotorUAVState(v[1],v[2],v[3],v[4]),convert(Bool,v[5]), convert(Int64,v[6]))
-  return s
-end
-
-
 
 # Create MDP - Need Dynamics Model first
 uav_dynamics = MultiRotorUAVDynamicsModel(MDP_TIMESTEP, ACC_NOISE_STD)
+
 
 pc_hopon_mdp = ControlledMultiRotorHopOnMDP(uav_dynamics)
 
@@ -50,7 +38,7 @@ info("Solving in-horizon policy")
 in_hor_approx = LocalGIFunctionApproximator(hopon_grid, in_hor_grid_term_values)
 
 approx_hopon_inhorizon_solver = LocalApproximationValueIterationSolver(in_hor_approx, max_iterations=1, verbose=true,
-                                                            is_mdp_generative=true, n_generative_samples=10,
+                                                            is_mdp_generative=true, n_generative_samples=20,
                                                             terminal_costs_set=true)
 approx_hopon_inhorizon_policy = solve(approx_hopon_inhorizon_solver, pc_hopon_mdp)
 
@@ -68,7 +56,7 @@ end
 ##################### Do work specific for out of horizon policy
 out_hor_approx_augmented = LocalGIFunctionApproximator(hopon_grid, outhor_grid_termvals)
 approx_hopon_outhorizon_solver_augmented = LocalApproximationValueIterationSolver(out_hor_approx_augmented, max_iterations=1, verbose=true,
-                                                            is_mdp_generative=true, n_generative_samples=10,
+                                                            is_mdp_generative=true, n_generative_samples=20,
                                                             terminal_costs_set=true)
 solve(approx_hopon_outhorizon_solver_augmented, pc_hopon_mdp)
 

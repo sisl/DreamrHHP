@@ -5,3 +5,5 @@ deps/deps.jl
 
 # MacOS stuff
 *.DS_Store
+*.jld
+
