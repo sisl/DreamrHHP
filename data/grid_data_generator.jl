@@ -187,7 +187,7 @@ end
 
 function generate_episode_dict_unitgrid(min_cars::Int, max_cars::Int,rng::RNG=Base.GLOBAL_RNG) where {RNG <: AbstractRNG}
 
-    num_epochs = convert(Int,round((EPISODE_DURATION/EPOCH_DURATION)+1))
+    num_epochs = convert(Int,round((EPISODE_DURATION/EPOCH_DURATION)))
     num_total_cars = rand(rng, min_cars:max_cars)
     num_added_cars = 0
 
@@ -216,9 +216,9 @@ function generate_episode_dict_unitgrid(min_cars::Int, max_cars::Int,rng::RNG=Ba
         curr_epoch_dict["car-info"][string("car-",num_added_cars)] = generate_initial_car_route(epoch_time)
     end
 
-    episode_dict["epochs"][1] = curr_epoch_dict
+    episode_dict["epochs"][0] = curr_epoch_dict
 
-    for epoch_idx = 2:num_epochs
+    for epoch_idx = 1:num_epochs
         
         # First advance existing cars with new epoch
         # TODO - Are we handling times correctly here

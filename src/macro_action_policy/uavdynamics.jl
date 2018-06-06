@@ -40,6 +40,10 @@ function get_state_at_rest(model::MultiRotorUAVDynamicsModel, p::Point)
     return MultiRotorUAVState(p.x, p.y, 0.0, 0.0)
 end
 
+function get_relative_state_to_goal(model::MultiRotorUAVDynamicsModel, goal_pos::Point, state::MultiRotorUAVState)
+    return MultiRotorUAVState(state.x - goal_pos.x, state.y - goal_pos.y, state.xdot, state.ydot)
+end
+
 
 
 # Truncate positions to their bounds

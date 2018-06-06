@@ -37,10 +37,10 @@ end
 
 # Initialize graph for first epoch
 # Assume that updates to successive epochs are only in car_routes
-function setup_graph(gs::GraphSolution, start_pos::Point, goal_pos::Point, epoch1::Dict, start_time::Float64=0.0, goal_time::Float64=Inf)
+function setup_graph(gs::GraphSolution, start_pos::Point, goal_pos::Point, epoch0::Dict, start_time::Float64=0.0, goal_time::Float64=Inf)
 
     # Set current time
-    gs.curr_time = convert(Float64, epoch1["time"])
+    gs.curr_time = convert(Float64, epoch0["time"])
 
     # Initialize start vertex
     gs.n_vertices += 1
@@ -56,7 +56,7 @@ function setup_graph(gs::GraphSolution, start_pos::Point, goal_pos::Point, epoch
 
     # Now add vertices for car route
     # NOTE - Ordering of cars is immaterial here
-    epoch_cars = epoch1["car-info"]
+    epoch_cars = epoch0["car-info"]
     for (car_id, car_info) in epoch_cars
 
         route_info = car_info["route"]
@@ -172,19 +172,19 @@ function astar_heuristic(gs::GraphSolution, v::CarDroneVertex)
 end
 
 
-function edge_weight_function_recompute(flightedge_wt_fn::Function, gs::GraphSolution, u::CarDroneVertex, v::CarDroneVertex)
+function edge_weight_function_recompute(flight_edge_wt_fn::Function, gs::GraphSolution, u::CarDroneVertex, v::CarDroneVertex)
     if u.is_car && v.is_car
         return coast_edge_cost(u,v)
     elseif !v.is_car # Flight edge to drone vertex
         return flight_edge_cost_nominal(u,v)
     else
-        return flightedge_wt_fn(u,v,gs.drone)
+        return flight_edge_wt_fn(u,v)
     end
 end
 
 
 # TODO - Should coast edge also use value function????
-function edge_weight_function_lookup(flightedge_wt_fn::Function, gs::GraphSolution, u::CarDroneVertex, v::CarDroneVertex)
+function edge_weight_function_lookup(flight_edge_wt_fn::Function, gs::GraphSolution, u::CarDroneVertex, v::CarDroneVertex)
     if u.is_car && v.is_car
         return coast_edge_cost(u,v)
     elseif !v.is_car # Flight edge to drone vertex
@@ -194,14 +194,14 @@ function edge_weight_function_lookup(flightedge_wt_fn::Function, gs::GraphSoluti
         edge_weight_val = get(gs.flight_edge_wts, (u,v), Inf)
         if edge_weight_val == Inf
             # Not present - compute weight and update
-            edge_weight_val = flightedge_wt_fn(u,v,gs.drone)
+            edge_weight_val = flight_edge_wt_fn(u,v)
             gs.flight_edge_wts[(u,v)] = edge_weight_val
         else
             # If either vertex time has changed significantly, update both and recompute
             if abs(u.time_stamp - u.last_time_stamp) > WAYPT_TIME_CHANGE_THRESHOLD || abs(v.time_stamp - v.last_time_stamp) > WAYPT_TIME_CHANGE_THRESHOLD
                 u.last_time_stamp = u.time_stamp
                 v.last_time_stamp = v.time_stamp
-                edge_weight_val = flightedge_wt_fn(u,v,gs.drone)
+                edge_weight_val = flight_edge_wt_fn(u,v)
                 gs.flight_edge_wts[(u,v)] = edge_weight_val
             end
         end
@@ -229,12 +229,12 @@ end
 
 # Whatever the next replan start vertex is, plan from it towards goal
 # NOTE - Updating the next start will be done by higher layer
-function plan_from_next_start(gs::GraphSolution, flightedge_wt_fn::Function, valid_edge_fn::Function)
+function plan_from_next_start(gs::GraphSolution, flight_edge_wt_fn::Function, valid_edge_fn::Function)
 
     # Set up heuristic and edge_weight_functions
     # TODO : What's the right way to just do this once?
     heuristic(v) = astar_heuristic(gs, v)
-    edge_wt_fn(u,v) = edge_weight_function(flightedge_wt_fn, gs.drone, u, v)
+    edge_wt_fn(u,v) = edge_weight_function_lookup(flight_edge_wt_fn, gs, u, v)
 
     # Reset the considered cars dict for each vertex
     # Add the next start with empty set (so its successor can copy from it)

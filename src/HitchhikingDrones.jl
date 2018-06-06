@@ -14,6 +14,18 @@ using LocalApproximationValueIteration
 
 # package code goes here
 
+# Dynamics stuff
+export
+    UAVDynamicsModel,
+    UAVState,
+    UAVAction,
+    MultiRotorUAVState,
+    MultiRotorUAVAction,
+    MultiRotorUAVDynamicsModel,
+    sigma_point_states_weights,
+    next_state,
+    dynamics_cost
+
 
 # Graph Planner components
 export
@@ -29,19 +41,6 @@ export
     update_next_start,
     plan_from_next_start,
     get_future_macro_actions_values
-
-# Dynamics stuff
-export
-    UAVDynamicsModel,
-    UAVState,
-    UAVAction,
-    MultiRotorUAVState,
-    MultiRotorUAVAction,
-    MultiRotorUAVDynamicsModel,
-    sigma_point_states_weights,
-    next_state,
-    dynamics_cost
-
 
 # Partial Control MDP stuff
 export
@@ -96,17 +95,24 @@ export
     sample_finish_time,
     step_sim
 
+export
+    SDMCState,
+    SDMCSimulator,
+    step_SDMC,
+    get_epoch0_dict
+
 
 
 
 
 include("types.jl")
 include("parameters.jl")
+include("macro_action_policy/uavdynamics.jl")
+include("macro_action_policy/partial_control_mdp.jl")
 include("graph_plan/astar_visitor_light.jl")
 include("graph_plan/graph_helpers.jl")
 include("graph_plan/graph_solution.jl")
-include("macro_action_policy/uavdynamics.jl")
-include("macro_action_policy/partial_control_mdp.jl")
 include("simulators/hoponoff_singlecar_simulator.jl")
+include("simulators/sdmc_simulator.jl")
 
 end # module

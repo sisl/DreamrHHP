@@ -59,3 +59,26 @@ function flight_edge_cost_nominal(u::CarDroneVertex, v::CarDroneVertex, d::Drone
         cost += TIME_COEFFICIENT*(dist/d.max_speed)
     end
 end
+
+function flight_edge_cost_valuefn(udm::UDM, hopon_policy::PartialControlHopOnOffPolicy,
+         u::CarDroneVertex, v::CarDroneVertex) where {UDM <: UAVDynamicsModel}
+    horizon = convert(Int,round((v.time_stamp-u.time_stamp)/MDP_TIMESTEP))
+
+    rel_pos = Point(u.x - v.x, u.y - v.y)
+    rel_state = get_state_at_rest(udm, rel_pos)
+
+    # Initialize with additional distance cost, if any
+    cost = FLIGHT_COEFFICIENT*max(0,point_norm(rel_pos) - HORIZON_LIM*sqrt(2))
+
+    if horizon < HORIZON_LIM
+        hopon_state = ControlledHopOnStateAugmented(rel_state,false,horizon)
+        cost += -value(hopon_policy.in_horizon_policy,hopon_state)
+    else
+        # Use outhorizon cost but also additional cost for time and/or distance
+        addtn_time_cost = TIME_COEFFICIENT*(horizon - HORIZON_LIM)
+        hopon_outhor_state = ControlledHopOnStateAugmented(rel_state,false,0.)
+        cost += -value(hopon_state.out_horizon_policy, hopon_outhor_state) + addtn_dist_cost
+    end
+
+    return cost
+end

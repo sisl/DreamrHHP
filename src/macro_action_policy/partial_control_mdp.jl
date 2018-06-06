@@ -301,10 +301,9 @@ function reward(mdp::ControlledMultiRotorHopOnMDP, s::ControlledHopOnStateAugmen
     return -cost
 end
 
+
 function generate_start_state(mdp::ControlledMultiRotorHopOnMDP, rng::RNG=Base.GLOBAL_RNG) where {RNG <: AbstractRNG}
-
     uav_startstate = generate_start_state(mdp.dynamics)
-
     return ControlledHopOnState(uav_startstate,false)
 end
 
