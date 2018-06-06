@@ -2,6 +2,7 @@
 *.jl.*.cov
 *.jl.mem
 deps/deps.jl
+*.json
 
 # MacOS stuff
 *.DS_Store
