@@ -209,16 +209,18 @@ function generate_episode_dict_unitgrid(min_cars::Int, max_cars::Int,rng::RNG=Ba
     # Start off with 2/3rds of the cars and then just add randomly
     cars_to_add = convert(Int, round(0.67*num_total_cars))
 
-    curr_epoch_dict = Dict("time"=>0.0, "car-info"=>Dict())
+    epoch0_dict = Dict("time"=>0.0, "car-info"=>Dict())
 
     for i=1:cars_to_add
         num_added_cars += 1
-        curr_epoch_dict["car-info"][string("car-",num_added_cars)] = generate_initial_car_route(epoch_time)
+        epoch0_dict["car-info"][string("car-",num_added_cars)] = generate_initial_car_route(epoch_time)
     end
 
-    episode_dict["epochs"][0] = curr_epoch_dict
+    episode_dict["epochs"][0] = epoch0_dict
 
     for epoch_idx = 1:num_epochs
+
+        curr_epoch_dict = deepcopy(episode_dict["epochs"][epoch_idx-1])
         
         # First advance existing cars with new epoch
         # TODO - Are we handling times correctly here
@@ -309,5 +311,5 @@ filename = ARGS[3]
 ep_dict = generate_episode_dict_unitgrid(min_cars, max_cars)
 
 open(filename,"w") do f
-    JSON.print(f,ep_dict)
+    JSON.print(f,ep_dict,2)
 end
