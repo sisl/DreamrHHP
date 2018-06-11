@@ -24,7 +24,11 @@ export
     MultiRotorUAVDynamicsModel,
     sigma_point_states_weights,
     next_state,
-    dynamics_cost
+    dynamics_cost,
+    HOP_ACTION,
+    HOPON,
+    STAY,
+    HOPOFF
 
 
 # Graph Planner components
@@ -33,6 +37,10 @@ export
     astar_light_shortest_path_implicit,
     SimpleVListGraph,
     CarDroneVertex,
+    is_valid_flight_edge,
+    coast_edge_cost,
+    flight_edge_cost_nominal,
+    flight_edge_cost_valuefn,
     GraphSolution,
     setup_graph,
     update_cars_with_epoch,
@@ -52,6 +60,9 @@ export
     HopOffMDP,
     ControlledMultiRotorHopOnMDP,
     PartialControlHopOnOffPolicy,
+    hopon_policy_action,
+    hopoff_policy_action,
+    outhor_outdist_action,
     terminalreward,
     actions,
     n_actions,
@@ -81,11 +92,12 @@ export
 # Types information
 export
     Point,
-    pointDist,
+    point_dist,
     point_norm,
     equal,
     interpolate,
     Car,
+    InactiveCar,
     Drone
 
 # For simulator
@@ -93,10 +105,9 @@ export
     HopOnOffSingleCarSimulator,
     reset_sim,
     sample_finish_time,
-    step_sim
-
-export
+    step_sim,
     SDMCState,
+    SDMCAction,
     SDMCSimulator,
     step_SDMC,
     get_epoch0_dict

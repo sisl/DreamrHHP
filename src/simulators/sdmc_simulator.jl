@@ -1,7 +1,7 @@
 mutable struct SDMCState{US <: UAVState}
     uav_state::US
     on_car::Bool
-    on_car_id::String
+    car_id::String
 end
 
 SDMCAction = Union{UA,Tuple{HOP_ACTION,String}} where {UA <: UAVAction}
@@ -36,14 +36,15 @@ function step_SDMC(sdmc::SDMCSimulator, action::SDMCAction)
     sdmc.epoch_counter += 1
 
     # Read in next epoch
-    epoch_car_info = sdmc.episode_dict[string(sdmc.epoch_counter)]
+    epoch_info_dict = sdmc.epochs_dict[string(sdmc.epoch_counter)]
+    epoch_car_info = epoch_info_dict["car-info"]
 
     reward::Float64 = 0.0
 
     # If UAV action, simulate and add reward and return car dict as additional info (OpenAIGYM style)
     if typeof(action) <: UAVAction
         new_uavstate = next_state(sdmc.uav_dynamics, sdmc.state.uav_state, action, sdmc.rng)
-        reward += -dynamics_cost(sdmc.uav_dynamics, sdmc.state, new_uavstate)
+        reward += -dynamics_cost(sdmc.uav_dynamics, sdmc.state.uav_state, new_uavstate)
         sdmc.state.uav_state = new_uavstate # Update system state
     else
         if action[1] == HOPON
@@ -56,10 +57,14 @@ function step_SDMC(sdmc::SDMCSimulator, action::SDMCAction)
                 hopon_car_id = action[2]
 
                 car_pos::Point = Point(epoch_car_info[hopon_car_id]["pos"][1],epoch_car_info[hopon_car_id]["pos"][2])
-                uav_pos::Point = Point(sdmc.uav_state.x, sdmc.uav_state.y)
+                uav_pos::Point = Point(sdmc.state.uav_state.x, sdmc.state.uav_state.y)
 
-                if point_dist(car_pos, uav_pos) < HOP_DISTANCE_THRESHOLD
+                if point_dist(car_pos, uav_pos) < MDP_TIMESTEP*HOP_DISTANCE_THRESHOLD
                     info("Successful hop on to ",hopon_car_id)
+                    curr_car_pos = Point(epoch_car_info[hopon_car_id]["pos"][1],epoch_car_info[hopon_car_id]["pos"][2])
+                    sdmc.state.uav_state = get_state_at_rest(sdmc.uav_dynamics, curr_car_pos)
+                    sdmc.state.on_car = true
+                    sdmc.state.car_id = hopon_car_id
                 else
                     warn("Too far from car to hop on!")
                     reward += -INVALID_ACTION_PENALTY
@@ -73,7 +78,7 @@ function step_SDMC(sdmc::SDMCSimulator, action::SDMCAction)
                 reward += -INVALID_ACTION_PENALTY
             else
                 # Assign new location to uav
-                current_car = sdmc.state.on_car_id
+                current_car = sdmc.state.car_id
                 curr_car_pos = Point(epoch_car_info[current_car]["pos"][1],epoch_car_info[current_car]["pos"][2])
                 sdmc.state.uav_state = get_state_at_rest(sdmc.uav_dynamics, curr_car_pos)
             end
@@ -84,22 +89,22 @@ function step_SDMC(sdmc::SDMCSimulator, action::SDMCAction)
                 warn("Cannot Hop Off when not on car!")
                 reward += -INVALID_ACTION_PENALTY
             else
-                current_car = sdmc.state.on_car_id
+                current_car = sdmc.state.car_id
                 curr_car_pos = Point(epoch_car_info[current_car]["pos"][1],epoch_car_info[current_car]["pos"][2])
                 sdmc.state.uav_state = get_state_at_rest(sdmc.uav_dynamics, curr_car_pos)
                 sdmc.state.on_car = false
-                sdmc.state.on_car_id = ""
+                sdmc.state.car_id = ""
             end
         end
     end
 
     is_terminal::Bool = false
     # Check if at goal
-    if point_dist(Point(sdmc.state.uav_state.x, sdmc.state.uav_state.y), sdmc.goal_pos) < HOP_DISTANCE_THRESHOLD
+    if point_dist(Point(sdmc.state.uav_state.x, sdmc.state.uav_state.y), sdmc.goal_pos) < MDP_TIMESTEP*HOP_DISTANCE_THRESHOLD
         reward += SUCCESS_REWARD
         is_terminal = true
     end
 
-    return sdmc.state, reward, is_terminal, epoch_car_info
+    return sdmc.state, reward, is_terminal, epoch_info_dict
 
 end

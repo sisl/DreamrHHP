@@ -1,6 +1,8 @@
 using Distributions
 using StaticArrays
-using Plots
+using Cairo 
+using Gadfly
+using Colors
 using JSON
 #=
 This script generates episodes for cars with no misses and bounded delays (of unknown bounds)
@@ -125,7 +127,6 @@ function generate_initial_car_route(start_time::Float64, rng::RNG=Base.GLOBAL_RN
     end
 
     route_duration = rand(rng,Uniform(0.85*AVG_ROUTE_DURATION, 1.15*AVG_ROUTE_DURATION))
-    println(route_length/route_duration)
     route_num_waypts = convert(Int,round(rand(rng,Uniform(0.75*AVG_ROUTE_WAYPOINTS, 1.25*AVG_ROUTE_WAYPOINTS))))
 
     route_dict = Dict("pos"=>car_start_pos,"route"=>Dict())
@@ -139,7 +140,6 @@ function generate_initial_car_route(start_time::Float64, rng::RNG=Base.GLOBAL_RN
             route_dict["route"][i] = [route_waypts[i+1],start_time + i*(route_duration/route_num_waypts)]
         end
     else
-        warn("L-shaped route")
         # Generate an inflection point randomly between 5/12ths and 7/12ths of the route
         inflec_frac = rand(rng,Uniform(1/3,2/3))
 
@@ -278,12 +278,16 @@ function plot_car_route(car_ep_dict::Dict)
 
 end
 
-function plot_all_active_cars_epoch(epoch_dict::Dict)
+function plot_all_active_cars_epoch(ep_dict::Dict, fig_filename::String, epoch_num::Int)
 
-    car_info_dict = epoch_dict["car-info"]
-    
-    plot()
+    car_info_dict = ep_dict["epochs"][epoch_num]["car-info"]
 
+    # Plot the start and goal
+    p = plot(x=[ep_dict["start_pos"][1], ep_dict["goal_pos"][1]], y=[ep_dict["start_pos"][2],ep_dict["goal_pos"][2]], 
+        shape=[Shape.square],Geom.point, Theme(background_color=parse(Colorant,"white"),default_color=RGB(0.,1.,0.),point_size=8pt),
+        xmin=[-1.],xmax=[1.],ymin=[-1.],ymax=[1.])
+    # draw(PNG("test.png",6inch,6inch), p)
+      
     for (car_id,car_ep_dict) in car_info_dict
         if car_ep_dict["route"] != nothing
             curr_pos = car_ep_dict["pos"]
@@ -293,23 +297,31 @@ function plot_all_active_cars_epoch(epoch_dict::Dict)
             pts_x = [timept[1][1] for (_,timept) in sorted_route]
             pts_y = [timept[1][2] for (_,timept) in sorted_route]
 
-            plot!(pts_x, pts_y, markershape = :hexagon,label=car_id)
-            plot!([curr_pos[1]], [curr_pos[2]], markershape =:hexagon, markercolor =:red,leg=false)
+            car_color = RGB(rand(), rand(), rand())
+
+            append!(p.layers, layer(x=pts_x, y=pts_y, Geom.point, shape=[Shape.xcross], Theme(default_color=car_color, point_size=4pt)))
+            append!(p.layers, layer(x=[curr_pos[1]], y=[curr_pos[2]], Geom.point, Theme(default_color=car_color, point_size=6pt)))
         end
     end
 
-    # savefig("carsfig.png")
+    draw(PNG(fig_filename,10inch,10inch), p)
 end
 
 
 # Script level code
-# Arguments are <min-cars> <max-cars> <file-name>
+#Arguments are <min-cars> <max-cars> <file-name>
 min_cars = parse(Int,ARGS[1])
 max_cars = parse(Int, ARGS[2])
 filename = ARGS[3]
+fig_fn = ARGS[4]
+
+min_cars = 8
+max_cars = 10
 
 ep_dict = generate_episode_dict_unitgrid(min_cars, max_cars)
 
 open(filename,"w") do f
     JSON.print(f,ep_dict,2)
 end
+
+plot_all_active_cars_epoch(ep_dict, fig_fn, 0)

@@ -58,3 +58,4 @@ const VALID_FLIGHT_EDGE_DIST_RATIO = 1.2 # The minimum ratio between dist of a f
 const CAR_TIME_STD = MDP_TIMESTEP/2.0
 const DELAY_SPEEDUP_PROB = 0.2
 const MAX_DELAY_SPEEDUP = 2.0*MDP_TIMESTEP
+const MC_TIME_NUMSAMPLES = 20

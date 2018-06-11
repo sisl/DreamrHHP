@@ -301,6 +301,134 @@ function reward(mdp::ControlledMultiRotorHopOnMDP, s::ControlledHopOnStateAugmen
     return -cost
 end
 
+function generate_time_to_finish_dist(curr_time_to_fin::Float64, rng::RNG=Base.GLOBAL_RNG) where {RNG <: AbstractRNG}
+
+    time_to_finish = Distributions.Normal(curr_time_to_fin, CAR_TIME_STD)
+    time_to_finish_prob = zeros(HORIZON_LIM+2)
+
+    for j = 1:MC_TIME_NUMSAMPLES
+        tval = rand(rng, time_to_finish)/MDP_TIMESTEP
+        if tval >= HORIZON_LIM
+            time_to_finish_prob[end] += 1.0
+        else
+            # Tricky part - don't round off but rather allocate
+            low = Int64(floor(tval))
+            high = Int64(ceil(tval))
+            low_wt = tval - floor(tval)
+            time_to_finish_prob[max(1,low+1)] += low_wt
+            time_to_finish_prob[max(1,high+1)] += 1.0 - low_wt
+        end
+    end
+
+    @assert sum(time_to_finish_prob) > 0.0
+    time_to_finish_prob /= sum(time_to_finish_prob)
+
+    return time_to_finish_prob
+end
+
+
+# IMP - Actual hopon to be decided by upper layer
+function hopon_policy_action(policy::PartialControlHopOnOffPolicy, rel_uavstate::US, 
+                                curr_time_to_fin::Float64, rng::RNG=Base.GLOBAL_RNG) where {US <: UAVState,RNG <: AbstractRNG}
+
+    # Set up the time to finish samples
+    time_to_finish_prob = generate_time_to_finish_dist(curr_time_to_fin)
+    mdp = policy.in_horizon_policy.mdp
+
+    action_values = zeros(n_actions(mdp))
+
+    for a in iterator(actions(mdp))
+        iaction = action_index(mdp,a)
+
+        # Horizon 0 value same for all actions - ignore
+        for hor = 1:HORIZON_LIM
+            time_prob = time_to_finish_prob[hor+1]
+
+            if time_prob > 0.0
+                aug_inhor_state = ControlledHopOnStateAugmented(rel_uavstate,
+                                                                false,hor)
+                action_values[iaction] += time_prob*action_value(policy.in_horizon_policy, aug_inhor_state, a)
+            end
+        end
+
+        time_prob = time_to_finish_prob[end]
+        if time_prob > 0.0
+            aug_outhor_state = ControlledHopOnStateAugmented(rel_uavstate,
+                                                                                            false,0.)
+            action_values[iaction] += time_prob*action_value(policy.out_horizon_policy,aug_outhor_state,a)
+        end
+    end
+
+    best_action_idx = indmax(action_values)
+    best_action = policy.in_horizon_policy.action_map[best_action_idx]
+
+    # Could be either hop on or hop off action
+    return best_action
+end
+
+function hopoff_policy_action(policy::PartialControlHopOnOffPolicy, curr_time_to_fin::Float64,rng::RNG=Base.GLOBAL_RNG) where {RNG <: AbstractRNG}
+
+    # Set up the time to finish samples
+    time_to_finish_prob = generate_time_to_finish_dist(curr_time_to_fin)
+    mdp = policy.mdp
+
+    action_values = zeros(n_actions(mdp))
+
+    for a in iterator(actions(mdp))
+        iaction = action_index(mdp,a)
+
+        # Horizon 0 value same for all actions - ignore
+        for hor = 1:HORIZON_LIM
+            time_prob = time_to_finish_prob[hor+1]
+
+            if time_prob > 0.0
+                aug_inhor_state = HopOffStateAugmented(true,hor)
+                action_values[iaction] += time_prob*action_value(policy.in_horizon_policy, aug_inhor_state, a)
+            end
+        end
+
+        time_prob = time_to_finish_prob[end]
+        if time_prob > 0.0
+            aug_outhor_state = HopOffStateAugmented(true,0.)
+            action_values[iaction] += time_prob*action_value(policy.out_horizon_policy,aug_outhor_state,a)
+        end
+    end
+
+    best_action_idx = indmax(action_values)
+    best_action = policy.in_horizon_policy.action_map[best_action_idx]
+
+    # Could be either hop on or hop off action
+    return best_action
+end
+
+function outhor_outdist_action(rel_uavstate::MultiRotorUAVState)
+
+    # Make the signs of velocity and distance to goal opposite
+    # Even if vel is 0, this will trigger a not-equalto
+    if sign(rel_uavstate.x) == sign(rel_uavstate.xdot)
+        acc_x = copysign(ACCELERATION_LIM, -rel_uavstate.xdot)
+    else
+        if abs(rel_uavstate.xdot) >= XYDOT_LIM
+            acc_x = 0.0
+        else
+            acc_x = copysign(ACCELERATION_LIM, rel_uavstate.xdot)
+        end
+    end
+
+    if sign(rel_uavstate.y) == sign(rel_uavstate.ydot)
+        acc_y = copysign(ACCELERATION_LIM, -rel_uavstate.ydot)
+    else
+        if abs(rel_uavstate.ydot) >= XYDOT_LIM
+            acc_y = 0.0
+        else
+            acc_y = copysign(ACCELERATION_LIM, rel_uavstate.ydot)
+        end
+    end
+
+    return HopOnAction(-1, MultiRotorUAVAction(acc_x, acc_y), nothing)
+end
+
+
 
 function generate_start_state(mdp::ControlledMultiRotorHopOnMDP, rng::RNG=Base.GLOBAL_RNG) where {RNG <: AbstractRNG}
     uav_startstate = generate_start_state(mdp.dynamics)

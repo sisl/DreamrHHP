@@ -35,7 +35,7 @@ function set_source!(state::AStarStates{D}, g::AbstractGraph{V}, s::Int) where {
     state.colormap[s] = 2
 end
 
-function process_neighbors_implicit(
+function process_neighbors_implicit!(
     state::AStarStates{D,Heap,H},
     graph::AbstractGraph{V},
     edge_wt_fn::Function,
@@ -78,14 +78,15 @@ function astar_light_shortest_path_implicit!(
     heuristic::Function,      # Heuristic function for vertices
     state::AStarStates{D,Heap,H}) where {V, D <: Number, Heap, H}
 
-    @graph_requires graph vertex_map vertex_list
+    # TODO : Make this work with simple vlist graph
+    # @graph_requires graph vertex_map vertex_list
 
     d0 = zero(D)
     set_source!(state, graph, source)
 
     source_nbrs = Vector{Int}()
 
-    if !Graphs.include_vertex!(visitor, graph.vertices[source], graph.vertices[source], d0, nbrs)
+    if !Graphs.include_vertex!(visitor, graph.vertices[source], graph.vertices[source], d0, source_nbrs)
         return state
     end
 
@@ -110,7 +111,7 @@ function astar_light_shortest_path_implicit!(
         # process u's neighbors
 
         process_neighbors_implicit!(state, graph, edge_wt_fn, nbrs, ui, d0, visitor, heuristic)
-        Graphs.close_vertex!(visitor, u)
+        Graphs.close_vertex!(visitor, graph.vertices[ui])
     end
 
     state

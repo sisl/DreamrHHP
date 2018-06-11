@@ -48,21 +48,6 @@ end
 
 # Truncate positions to their bounds
 function truncated_state(state::MultiRotorUAVState)
-    if state.x < -XY_LIM
-        tx = -XY_LIM
-    elseif state.x > XY_LIM
-        tx = XY_LIM
-    else
-        tx = state.x
-    end
-
-    if state.y < -XY_LIM
-        ty = -XY_LIM
-    elseif state.y > XY_LIM
-        ty = XY_LIM
-    else
-        ty = state.y
-    end
 
     if state.xdot < -XYDOT_LIM
         txdot = -XYDOT_LIM
@@ -80,7 +65,7 @@ function truncated_state(state::MultiRotorUAVState)
         tydot = state.ydot
     end
 
-    return MultiRotorUAVState(tx,ty,txdot,tydot)
+    return MultiRotorUAVState(state.x,state.y,txdot,tydot)
 
 end
 

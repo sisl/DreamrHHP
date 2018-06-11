@@ -1,7 +1,7 @@
 using DataStructures
 
 # Data structure for coordinates
-mutable struct Point
+struct Point
     x::Float64
     y::Float64
 end
@@ -31,7 +31,6 @@ function interpolate(p1::Point,p2::Point,frac::Float64)
 end
 
 mutable struct Car
-    curr_pos::Point
     route_idx_range::Vector{Int} # Size 2 but needs to be changeable
     cargoDroneIdx::Int # 0 if no drone
     capacity::Int
@@ -40,12 +39,12 @@ end
 
 # Default constructor inactive car - unlikely to be used
 function InactiveCar()
-    return Car(Point(), [0,0], 0, 1, false)
+    return Car([0,0], 0, 1, false)
 end
 
 
-function Car(_pt::Point,idx_range::Vector{Int})
-    return Car(_pt, idx_range, 0, 1, true)
+function Car(idx_range::Vector{Int})
+    return Car(idx_range, 0, 1, true)
 end
 
 

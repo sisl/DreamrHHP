@@ -27,7 +27,6 @@ hopon_policy = load("hopon_generative_unitgrid_paramset2.jld","policy")
 
 rng = MersenneTwister(2)
 NUM_EPISODES = 10
-MC_TIME_NUMSAMPLES = 20
 
 # Now create MDP and simulator
 uav_dynamics = MultiRotorUAVDynamicsModel(MDP_TIMESTEP, ACC_NOISE_STD)

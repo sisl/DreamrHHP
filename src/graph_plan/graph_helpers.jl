@@ -10,6 +10,10 @@ function Graphs.add_vertex!(g::SimpleVListGraph{V}, v::V) where V
     push!(g.vertices, v)
 end
 
+function Graphs.num_vertices(g::SimpleVListGraph{V}) where V
+    return length(g.vertices)
+end
+
 
 # CarDroneVertex for drone flight waypoints
 # Will typically just be the start and goal
@@ -40,7 +44,7 @@ end
 
 # Can drone even make the flight edge in time
 function is_valid_flight_edge(u::CarDroneVertex, v::CarDroneVertex, d::Drone)
-    return point_dist(u.pos, v.pos) > (VALID_FLIGHT_EDGE_DIST_RATIO*d.max_speed*(v.time_stamp - u.time_stamp))
+    return d.max_speed*(v.time_stamp - u.time_stamp) > point_dist(u.pos, v.pos)*VALID_FLIGHT_EDGE_DIST_RATIO
 end
 
 function coast_edge_cost(u::CarDroneVertex, v::CarDroneVertex)
@@ -64,7 +68,7 @@ function flight_edge_cost_valuefn(udm::UDM, hopon_policy::PartialControlHopOnOff
          u::CarDroneVertex, v::CarDroneVertex) where {UDM <: UAVDynamicsModel}
     horizon = convert(Int,round((v.time_stamp-u.time_stamp)/MDP_TIMESTEP))
 
-    rel_pos = Point(u.x - v.x, u.y - v.y)
+    rel_pos = Point(u.pos.x - v.pos.x, u.pos.y - v.pos.y)
     rel_state = get_state_at_rest(udm, rel_pos)
 
     # Initialize with additional distance cost, if any
@@ -77,7 +81,7 @@ function flight_edge_cost_valuefn(udm::UDM, hopon_policy::PartialControlHopOnOff
         # Use outhorizon cost but also additional cost for time and/or distance
         addtn_time_cost = TIME_COEFFICIENT*(horizon - HORIZON_LIM)
         hopon_outhor_state = ControlledHopOnStateAugmented(rel_state,false,0.)
-        cost += -value(hopon_state.out_horizon_policy, hopon_outhor_state) + addtn_dist_cost
+        cost += -value(hopon_policy.out_horizon_policy, hopon_outhor_state) + addtn_time_cost
     end
 
     return cost
