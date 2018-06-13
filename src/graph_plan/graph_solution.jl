@@ -270,7 +270,14 @@ function plan_from_next_start(gs::GraphSolution, flight_edge_wt_fn::Function, va
         curr_vertex_idx = prev_vertex_idx
     end
 
+
     gs.curr_best_soln_value = astar_path_soln.dists[gs.goal_idx]
+
+    # println("Curr soln idx path:")
+    # for idx in gs.curr_soln_idx_path
+    #     println("Idx - ",idx," ; cost - ",astar_path_soln.dists[idx])
+    # end
+
 
     # now update the future macro_actions
     empty!(gs.future_macro_actions_values)
@@ -278,7 +285,7 @@ function plan_from_next_start(gs::GraphSolution, flight_edge_wt_fn::Function, va
     # By construction, curr_soln_idx_path must end in goal_idx
     curr_action_start = gs.car_drone_graph.vertices[gs.curr_soln_idx_path[1]]
 
-    for idx in gs.curr_soln_idx_path[2:end-1]
+    for idx in gs.curr_soln_idx_path[2:end]
         next_action_start = gs.car_drone_graph.vertices[idx]
         if next_action_start.is_car != curr_action_start.is_car
             # Represents a change
@@ -319,7 +326,7 @@ end
 function Graphs.include_vertex!(vis::GoalVisitorImplicit, u::CarDroneVertex, v::CarDroneVertex, d::Float64, nbrs::Vector{Int})
 
     # NOTE - nbrs is updated in place!
-    # println(v," is popped")
+    #println(v," is popped")
 
     if v.idx == vis.gs.goal_idx
         # readline()
@@ -337,6 +344,12 @@ function Graphs.include_vertex!(vis::GoalVisitorImplicit, u::CarDroneVertex, v::
         # If it is NOT the last element of the list, add the next route vert to nbrs
         if v_pos < length(self_route_idxs)
             push!(nbrs,self_route_idxs[v_pos+1])
+        end
+
+        # NOTE : If this is the first coast vertex, don't do any more
+        # Must do at least 1 coast edge
+        if u.is_car == false
+            return true
         end
     end
 
@@ -382,7 +395,7 @@ function Graphs.include_vertex!(vis::GoalVisitorImplicit, u::CarDroneVertex, v::
     #     print(n,", ")
     # end
 
-    # readline()
+    #readline()
 
     return true
 end

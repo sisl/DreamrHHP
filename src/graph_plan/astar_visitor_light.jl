@@ -110,7 +110,7 @@ function astar_light_shortest_path_implicit!(
 
         # process u's neighbors
 
-        process_neighbors_implicit!(state, graph, edge_wt_fn, nbrs, ui, d0, visitor, heuristic)
+        process_neighbors_implicit!(state, graph, edge_wt_fn, nbrs, ui, du, visitor, heuristic)
         Graphs.close_vertex!(visitor, graph.vertices[ui])
     end
 

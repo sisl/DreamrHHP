@@ -54,6 +54,7 @@ end
 # Nominal flight edge cost when pc policy not used
 # TODO : Need a model of flight cost for such flight edges
 function flight_edge_cost_nominal(u::CarDroneVertex, v::CarDroneVertex, d::Drone)
+    println("Nominal edge - ",u.idx," to ",v.idx)
     dist::Float64 = point_dist(u.pos, v.pos)
     cost::Float64 = FLIGHT_COEFFICIENT*dist
     if v.time_stamp < Inf
@@ -62,6 +63,8 @@ function flight_edge_cost_nominal(u::CarDroneVertex, v::CarDroneVertex, d::Drone
     else
         cost += TIME_COEFFICIENT*(dist/d.max_speed)
     end
+    println("COST is ",cost)
+    return cost
 end
 
 function flight_edge_cost_valuefn(udm::UDM, hopon_policy::PartialControlHopOnOffPolicy,
@@ -84,5 +87,5 @@ function flight_edge_cost_valuefn(udm::UDM, hopon_policy::PartialControlHopOnOff
         cost += -value(hopon_policy.out_horizon_policy, hopon_outhor_state) + addtn_time_cost
     end
 
-    return cost
+    return cost + HOP_REWARD
 end
