@@ -18,7 +18,7 @@ using HitchhikingDrones
 
 
 # Read in the episode filename from args
-ep_file = "../data/test-2-12to15.json"
+ep_file = "../data/test-3-120-to-150.json"
 hopon_file = "policies/hopon_generative_unitgrid_paramset2.jld"
 hopoff_file = "policies/hopoff.jld"
 
@@ -57,7 +57,8 @@ hopoff_policy = load(hopoff_file,"policy")
 
 graph_planner = GraphSolution(drone)
 setup_graph(graph_planner, start_pos, goal_pos, get_epoch0_dict(sdmc_sim))
-flight_edge_wt_fn(u,v) = flight_edge_cost_valuefn(uav_dynamics, hopon_policy, u, v)
+flight_edge_wt_fn(u,v) = flight_edge_cost_valuefn(uav_dynamics, hopon_policy, u, v, drone)
+
 
 # Initialize plan
 mode = GRAPH_PLAN
@@ -76,7 +77,7 @@ for epoch = 1:num_epochs
 
         # Check if there is a need to replan from the next start
         if need_to_replan == true
-            plan_from_next_start(graph_planner, flight_edge_wt_fn, is_valid_flight_edge)
+            @time plan_from_next_start(graph_planner, flight_edge_wt_fn, is_valid_flight_edge)
             need_to_replan = false
             readline()
         end
@@ -85,7 +86,7 @@ for epoch = 1:num_epochs
         if graph_planner.has_next_macro_action == false
             warn("No macro action available, just waiting")
             sdmc_action = MultiRotorUAVAction(0.0,0.0)
-            need_to_replan = trues
+            need_to_replan = true
         else
             # Decide what the next macro action is and set modes accordingly
             next_macro_edge = graph_planner.future_macro_actions_values[1][1]
@@ -113,46 +114,53 @@ for epoch = 1:num_epochs
                                           curr_state.uav_state.xdot, curr_state.uav_state.ydot)
         # NOTE - Heuristic for efficiency
         # If the horizon is far out just directly generate the out-horizon action
-        if curr_fin_time/MDP_TIMESTEP > HORIZON_LIM + 4
+        if curr_fin_time < Inf
+            if curr_fin_time/MDP_TIMESTEP > HORIZON_LIM + 4
 
-            if abs(rel_uavstate.x) > 1.5*XY_LIM || abs(rel_uavstate.y) > 1.5*XY_LIM
-                best_action = outhor_outdist_action(rel_uavstate)
-            else
-                aug_outhor_state = ControlledHopOnStateAugmented(rel_uavstate,false,0.)
-                best_action = action(hopon_policy.out_horizon_policy, aug_outhor_state)
-            end
+                if abs(rel_uavstate.x) > 1.05*XY_LIM || abs(rel_uavstate.y) > 1.05*XY_LIM
+                    best_action = outhor_outdist_action(rel_uavstate)
+                else
+                    aug_outhor_state = ControlledHopOnStateAugmented(rel_uavstate,false,0.)
+                    best_action = action(hopon_policy.out_horizon_policy, aug_outhor_state)
+                end
 
-            if best_action.control_transfer == true
-                # Lower level action aborts
-                sdmc_action = MultiRotorUAVAction(0.0,0.0)
-                need_to_replan = true
+                if best_action.control_transfer == true
+                    # Lower level action aborts
+                    info("Aborting current hopon action")
+                    sdmc_action = MultiRotorUAVAction(0.0,0.0)
+                    need_to_replan = true
+                else
+                    # Just get the UAV action
+                    sdmc_action = best_action.uavaction
+                end
+            elseif curr_fin_time < MDP_TIMESTEP
+                @assert next_vertex.is_car==true
+                # Go for the hop if you can
+                if curr_dist < MDP_TIMESTEP*HOP_DISTANCE_THRESHOLD
+                    sdmc_action = (HOPON, next_vertex.car_id)
+                    need_to_replan = true
+                else
+                    # Missed connection and didn't abort before - just propagate  dynamics and replan
+                    sdmc_action = MultiRotorUAVAction(0.0,0.0)
+                    need_to_replan = true
+                end
             else
-                # Just get the UAV action
-                sdmc_action = best_action.uavaction
-            end
-        elseif curr_fin_time < MDP_TIMESTEP
-            @assert next_vertex.is_car==true
-            # Go for the hop if you can
-            if curr_dist < HOP_DISTANCE_THRESHOLD
-                sdmc_action = (HOPON, next_vertex.car_id)
-                need_to_replan = true
-            else
-                # Missed connection and didn't abort before - just propagate  dynamics and replan
-                sdmc_action = MultiRotorUAVAction(0.0,0.0)
-                need_to_replan = true
+                best_action = hopon_policy_action(hopon_policy, rel_uavstate, curr_fin_time)
+
+                if best_action.control_transfer == true
+                    # Lower level action aborts
+                    info("Aborting current hopon action")
+                    sdmc_action = MultiRotorUAVAction(0.0,0.0)
+                    need_to_replan = true
+                else
+                    # Just get the UAV action
+                    sdmc_action = best_action.uavaction
+                end
             end
         else
-            best_action = hopon_policy_action(hopon_policy, rel_uavstate, curr_fin_time)
-
-            if best_action.control_transfer == true
-                # Lower level action aborts
-                sdmc_action = MultiRotorUAVAction(0.0,0.0)
-                need_to_replan = true
-            else
-                # Just get the UAV action
-                sdmc_action = best_action.uavaction
-            end
+            sdmc_action = unconstrained_flight_action(rel_uavstate)
         end
+
     else
         @assert curr_state.on_car == true
         # COAST mode - simpler :P

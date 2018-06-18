@@ -10,6 +10,7 @@ using POMDPModels
 using POMDPs
 using POMDPToolbox
 using LocalApproximationValueIteration
+using Logging
 
 
 # package code goes here
@@ -63,6 +64,7 @@ export
     hopon_policy_action,
     hopoff_policy_action,
     outhor_outdist_action,
+    unconstrained_flight_action,
     terminalreward,
     actions,
     n_actions,

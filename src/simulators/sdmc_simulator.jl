@@ -59,7 +59,7 @@ function step_SDMC(sdmc::SDMCSimulator, action::SDMCAction)
                 car_pos::Point = Point(epoch_car_info[hopon_car_id]["pos"][1],epoch_car_info[hopon_car_id]["pos"][2])
                 uav_pos::Point = Point(sdmc.state.uav_state.x, sdmc.state.uav_state.y)
 
-                if point_dist(car_pos, uav_pos) < MDP_TIMESTEP*HOP_DISTANCE_THRESHOLD
+                if point_dist(car_pos, uav_pos) < 2*MDP_TIMESTEP*HOP_DISTANCE_THRESHOLD
                     info("Successful hop on to ",hopon_car_id)
                     curr_car_pos = Point(epoch_car_info[hopon_car_id]["pos"][1],epoch_car_info[hopon_car_id]["pos"][2])
                     sdmc.state.uav_state = get_state_at_rest(sdmc.uav_dynamics, curr_car_pos)
@@ -100,7 +100,7 @@ function step_SDMC(sdmc::SDMCSimulator, action::SDMCAction)
 
     is_terminal::Bool = false
     # Check if at goal
-    if point_dist(Point(sdmc.state.uav_state.x, sdmc.state.uav_state.y), sdmc.goal_pos) < MDP_TIMESTEP*HOP_DISTANCE_THRESHOLD
+    if point_dist(Point(sdmc.state.uav_state.x, sdmc.state.uav_state.y), sdmc.goal_pos) < 5*MDP_TIMESTEP*HOP_DISTANCE_THRESHOLD
         reward += SUCCESS_REWARD
         is_terminal = true
     end

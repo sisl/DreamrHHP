@@ -39,7 +39,7 @@ end
 
 # Default constructor inactive car - unlikely to be used
 function InactiveCar()
-    return Car([0,0], 0, 1, false)
+    return Car([0,0], 0, 1,false)
 end
 
 

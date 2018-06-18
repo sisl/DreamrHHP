@@ -353,8 +353,7 @@ function hopon_policy_action(policy::PartialControlHopOnOffPolicy, rel_uavstate:
 
         time_prob = time_to_finish_prob[end]
         if time_prob > 0.0
-            aug_outhor_state = ControlledHopOnStateAugmented(rel_uavstate,
-                                                                                            false,0.)
+            aug_outhor_state = ControlledHopOnStateAugmented(rel_uavstate,false,0.)
             action_values[iaction] += time_prob*action_value(policy.out_horizon_policy,aug_outhor_state,a)
         end
     end
@@ -370,7 +369,7 @@ function hopoff_policy_action(policy::PartialControlHopOnOffPolicy, curr_time_to
 
     # Set up the time to finish samples
     time_to_finish_prob = generate_time_to_finish_dist(curr_time_to_fin)
-    mdp = policy.mdp
+    mdp = policy.in_horizon_policy.mdp
 
     action_values = zeros(n_actions(mdp))
 
@@ -401,31 +400,54 @@ function hopoff_policy_action(policy::PartialControlHopOnOffPolicy, curr_time_to
     return best_action
 end
 
+
+function get_acc_along_axis_outhordist(axis_pos_diff::Float64, axis_dot::Float64)
+
+    if axis_pos_diff < 1.05*XY_LIM
+        # Just take it to rest
+        acc = min(abs(axis_dot/MDP_TIMESTEP), ACCELERATION_LIM)
+        acc = copysign(acc, -axis_dot)
+    else
+        if sign(axis_pos_diff) == sign(axis_dot)
+            acc = copysign(ACCELERATION_LIM, -axis_dot)
+        else
+            if abs(axis_dot) >= XYDOT_LIM
+                acc = 0.0
+            else
+                acc = copysign(ACCELERATION_LIM, axis_dot)
+            end
+        end
+    end
+    return acc
+end
+
 function outhor_outdist_action(rel_uavstate::MultiRotorUAVState)
-
-    # Make the signs of velocity and distance to goal opposite
-    # Even if vel is 0, this will trigger a not-equalto
-    if sign(rel_uavstate.x) == sign(rel_uavstate.xdot)
-        acc_x = copysign(ACCELERATION_LIM, -rel_uavstate.xdot)
-    else
-        if abs(rel_uavstate.xdot) >= XYDOT_LIM
-            acc_x = 0.0
-        else
-            acc_x = copysign(ACCELERATION_LIM, rel_uavstate.xdot)
-        end
-    end
-
-    if sign(rel_uavstate.y) == sign(rel_uavstate.ydot)
-        acc_y = copysign(ACCELERATION_LIM, -rel_uavstate.ydot)
-    else
-        if abs(rel_uavstate.ydot) >= XYDOT_LIM
-            acc_y = 0.0
-        else
-            acc_y = copysign(ACCELERATION_LIM, rel_uavstate.ydot)
-        end
-    end
-
+    acc_x = get_acc_along_axis_outhordist(rel_uavstate.x, rel_uavstate.xdot)
+    acc_y = get_acc_along_axis_outhordist(rel_uavstate.y, rel_uavstate.ydot)
     return HopOnAction(-1, MultiRotorUAVAction(acc_x, acc_y), nothing)
+end
+
+
+function get_acc_along_axis_unconstrained(axis_pos_diff::Float64, axis_dot::Float64)
+
+    if sign(axis_pos_diff) == sign(axis_dot)
+        acc = copysign(ACCELERATION_LIM, -axis_dot)
+    else
+        if axis_pos_diff > 10*XYDOT_LIM*MDP_TIMESTEP
+            acc = copysign(ACCELERATION_LIM, axis_dot)
+        else
+            acc_untrunc = min(abs(-2*(axis_pos_diff + axis_dot*MDP_TIMESTEP)/(MDP_TIMESTEP^2)), ACCELERATION_LIM)
+            acc = copysign(acc_untrunc, axis_dot)
+        end
+    end
+    return acc
+end
+
+
+function unconstrained_flight_action(rel_uavstate::MultiRotorUAVState)
+    acc_x = get_acc_along_axis_unconstrained(rel_uavstate.x, rel_uavstate.xdot)
+    acc_y = get_acc_along_axis_unconstrained(rel_uavstate.y, rel_uavstate.ydot)
+    return MultiRotorUAVAction(acc_x, acc_y)
 end
 
 

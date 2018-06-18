@@ -44,7 +44,7 @@ const WAYPT_TIME_CHANGE_THRESHOLD = MDP_TIMESTEP/2.0
 
 
 # Cost parameters
-const FLIGHT_COEFFICIENT = 1.0
+const FLIGHT_COEFFICIENT = 1000.0
 const TIME_COEFFICIENT = 0.5
 const HOP_COEFFICIENT = 10.0
 const HOVER_COEFFICIENT = 1.0
@@ -52,7 +52,7 @@ const HOP_REWARD = 100.0
 const CONTROL_TRANSFER_PENALTY = 100.0
 const INVALID_ACTION_PENALTY = 10.0 # For the real simulator
 const SUCCESS_REWARD = 1000.0 # For the real simulator
-const VALID_FLIGHT_EDGE_DIST_RATIO = 1.2 # The minimum ratio between dist of a flight edge and (max_speed*time_diff)
+const VALID_FLIGHT_EDGE_DIST_RATIO = 1.25 # The minimum ratio between dist of a flight edge and (max_speed*time_diff)
 
 # Additional simulator parameters - UNKNOWN to agent
 const CAR_TIME_STD = MDP_TIMESTEP/2.0

@@ -315,9 +315,6 @@ max_cars = parse(Int, ARGS[2])
 filename = ARGS[3]
 fig_fn = ARGS[4]
 
-min_cars = 8
-max_cars = 10
-
 ep_dict = generate_episode_dict_unitgrid(min_cars, max_cars)
 
 open(filename,"w") do f

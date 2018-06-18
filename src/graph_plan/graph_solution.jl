@@ -122,8 +122,6 @@ function update_cars_with_epoch(gs::GraphSolution, epoch::Dict)
                     this_car.route_idx_range[1] = first_route_idx
                 end
             else
-                # Car has become inactive
-                info("Car ",car_id," has become inactive!")
                 this_car.active = false
             end
         else
@@ -143,10 +141,6 @@ function update_cars_with_epoch(gs::GraphSolution, epoch::Dict)
 
                 gs.car_map[car_id] = Car([first_route_idx, last_route_idx])
                 info("Car ",car_id," has been added!")
-            else
-                # Add inactive car - this should not happen at first epoch though
-                warn("Inactive Car ",car_id," in its first epoch!")
-                gs.car_map[car_id] = InactiveCar()
             end
         end
     end
@@ -273,31 +267,53 @@ function plan_from_next_start(gs::GraphSolution, flight_edge_wt_fn::Function, va
 
     gs.curr_best_soln_value = astar_path_soln.dists[gs.goal_idx]
 
-    # println("Curr soln idx path:")
-    # for idx in gs.curr_soln_idx_path
-    #     println("Idx - ",idx," ; cost - ",astar_path_soln.dists[idx])
-    # end
+    println("Curr soln idx path:")
+    for idx in gs.curr_soln_idx_path
+        println("Idx - ",idx," ; cost - ",astar_path_soln.dists[idx])
+    end
 
 
     # now update the future macro_actions
     empty!(gs.future_macro_actions_values)
 
-    # By construction, curr_soln_idx_path must end in goal_idx
-    curr_action_start = gs.car_drone_graph.vertices[gs.curr_soln_idx_path[1]]
-
-    for idx in gs.curr_soln_idx_path[2:end]
-        next_action_start = gs.car_drone_graph.vertices[idx]
-        if next_action_start.is_car != curr_action_start.is_car
-            # Represents a change
-            macro_action_val = astar_path_soln.dists[next_action_start.idx] - astar_path_soln.dists[curr_action_start.idx]
-            push!(gs.future_macro_actions_values,((curr_action_start, next_action_start), macro_action_val))
-            curr_action_start = next_action_start
+    last_idx = gs.curr_soln_idx_path[1]
+    for (i,idx) in enumerate(gs.curr_soln_idx_path[2:end-1])
+        # println(idx)
+        macro_action_val = astar_path_soln.dists[idx] - astar_path_soln.dists[last_idx]
+        if gs.car_drone_graph.vertices[idx].is_car != gs.car_drone_graph.vertices[last_idx].is_car
+            # Either car to fin or start to car - update and set macro action
+            push!(gs.future_macro_actions_values,
+                ((gs.car_drone_graph.vertices[last_idx], gs.car_drone_graph.vertices[idx]), macro_action_val))
+            last_idx = idx
+        else
+            # NOTE - Will never be flight to flight; So CAR to CAR
+            if gs.car_drone_graph.vertices[idx].is_car == false && gs.car_drone_graph.vertices[last_idx].is_car
+                warn("Flight to flight edge macro action?")
+            else
+                if gs.car_drone_graph.vertices[idx].car_id != gs.car_drone_graph.vertices[last_idx].car_id
+                    # Car to new car
+                    push!(gs.future_macro_actions_values,
+                        ((gs.car_drone_graph.vertices[last_idx], gs.car_drone_graph.vertices[idx]), macro_action_val))
+                    last_idx = idx
+                else
+                    # Add coast edge if next vertex is diff car or flight
+                    # println("In coast edge loop")
+                    # println(gs.car_drone_graph.vertices[gs.curr_soln_idx_path[i+2]])
+                    if (gs.car_drone_graph.vertices[gs.curr_soln_idx_path[i+2]].car_id != gs.car_drone_graph.vertices[idx].car_id) || 
+                        gs.car_drone_graph.vertices[gs.curr_soln_idx_path[i+2]].is_car == false
+                        push!(gs.future_macro_actions_values,
+                        ((gs.car_drone_graph.vertices[last_idx], gs.car_drone_graph.vertices[idx]), macro_action_val))
+                        last_idx = idx
+                    end
+                end
+            end
         end
     end
 
+
     # Append the last one regardless
-    last_val::Float64 = gs.curr_best_soln_value - astar_path_soln.dists[curr_action_start.idx]
-    push!(gs.future_macro_actions_values, ((curr_action_start, gs.car_drone_graph.vertices[gs.goal_idx]), last_val))
+    last_val::Float64 = gs.curr_best_soln_value - astar_path_soln.dists[last_idx]
+    push!(gs.future_macro_actions_values, ((gs.car_drone_graph.vertices[last_idx], gs.car_drone_graph.vertices[gs.goal_idx]), last_val))
     for mav in gs.future_macro_actions_values
         println(mav)
     end
@@ -326,11 +342,21 @@ end
 function Graphs.include_vertex!(vis::GoalVisitorImplicit, u::CarDroneVertex, v::CarDroneVertex, d::Float64, nbrs::Vector{Int})
 
     # NOTE - nbrs is updated in place!
-    #println(v," is popped")
+    # println(v," is popped")
 
     if v.idx == vis.gs.goal_idx
         # readline()
         return false
+    end
+
+    # Now add flight edges to all other applicable car and drone verts
+    # Assume predecessor had some passedCars or empty set
+    vis.gs.per_plan_considered_cars[v.idx] = copy(vis.gs.per_plan_considered_cars[u.idx])
+    # vis.gs.per_plan_considered_cars[v.idx] = Set{String}()
+
+    # If pred was a car vertex and of a different idx, update passed cars
+    if u.is_car == true && u.car_id != v.car_id
+        push!(vis.gs.per_plan_considered_cars[v.idx], u.car_id)
     end
 
     # First do special work if it is a car route vertex
@@ -346,30 +372,25 @@ function Graphs.include_vertex!(vis::GoalVisitorImplicit, u::CarDroneVertex, v::
             push!(nbrs,self_route_idxs[v_pos+1])
         end
 
+        # println("Neighbors:")
+        # for n in nbrs
+        #     print(n,", ")
+        # end
         # NOTE : If this is the first coast vertex, don't do any more
         # Must do at least 1 coast edge
-        if u.is_car == false
+        if u.is_car == false || u.car_id != v.car_id
             return true
         end
     end
 
-    # Now add flight edges to all other applicable car and drone verts
-    # Assume predecessor had some passedCars or empty set
-    vis.gs.per_plan_considered_cars[v.idx] = copy(vis.gs.per_plan_considered_cars[u.idx])
-    # vis.gs.per_plan_considered_cars[v.idx] = Set{String}()
-
-    # If pred was a car vertex and of a different idx, update passed cars
-    if u.is_car == true && u.car_id != v.car_id
-        push!(vis.gs.per_plan_considered_cars[v.idx], u.car_id)
-    end
-
-
 
     # Iterate over cars that are not the same and not in passed cars
     for car_id in collect(keys(vis.gs.car_map))
-        if car_id == v.car_id || car_id in vis.gs.per_plan_considered_cars[v.idx]
+        if car_id == v.car_id || car_id in vis.gs.per_plan_considered_cars[v.idx] || vis.gs.car_map[car_id].active==false
             continue
         end
+
+        # println("Considering ",car_id)
 
         # Iterate over car route vertices
         car_route_idxs::Vector{Int} = car_route_idx_list_simple(vis.gs, car_id)
@@ -395,7 +416,7 @@ function Graphs.include_vertex!(vis::GoalVisitorImplicit, u::CarDroneVertex, v::
     #     print(n,", ")
     # end
 
-    #readline()
+    # readline()
 
     return true
 end

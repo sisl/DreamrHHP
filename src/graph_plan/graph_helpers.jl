@@ -44,7 +44,8 @@ end
 
 # Can drone even make the flight edge in time
 function is_valid_flight_edge(u::CarDroneVertex, v::CarDroneVertex, d::Drone)
-    return d.max_speed*(v.time_stamp - u.time_stamp) > point_dist(u.pos, v.pos)*VALID_FLIGHT_EDGE_DIST_RATIO
+    max_axis_dist = max(abs(u.pos.x - v.pos.x),abs(u.pos.y - v.pos.y))
+    return XYDOT_LIM*(v.time_stamp - u.time_stamp) > max_axis_dist*VALID_FLIGHT_EDGE_DIST_RATIO
 end
 
 function coast_edge_cost(u::CarDroneVertex, v::CarDroneVertex)
@@ -54,28 +55,32 @@ end
 # Nominal flight edge cost when pc policy not used
 # TODO : Need a model of flight cost for such flight edges
 function flight_edge_cost_nominal(u::CarDroneVertex, v::CarDroneVertex, d::Drone)
-    println("Nominal edge - ",u.idx," to ",v.idx)
     dist::Float64 = point_dist(u.pos, v.pos)
     cost::Float64 = FLIGHT_COEFFICIENT*dist
     if v.time_stamp < Inf
-        # This is unlikely for now
         cost += TIME_COEFFICIENT*(v.time_stamp - u.time_stamp)
     else
         cost += TIME_COEFFICIENT*(dist/d.max_speed)
     end
-    println("COST is ",cost)
+    # println("Nominal edge - ",u.idx," to ",v.idx," of cost ",cost)
     return cost
 end
 
+
+# ASSUME this is inside distance limits
 function flight_edge_cost_valuefn(udm::UDM, hopon_policy::PartialControlHopOnOffPolicy,
-         u::CarDroneVertex, v::CarDroneVertex) where {UDM <: UAVDynamicsModel}
+         u::CarDroneVertex, v::CarDroneVertex, d::Drone) where {UDM <: UAVDynamicsModel}
     horizon = convert(Int,round((v.time_stamp-u.time_stamp)/MDP_TIMESTEP))
 
     rel_pos = Point(u.pos.x - v.pos.x, u.pos.y - v.pos.y)
     rel_state = get_state_at_rest(udm, rel_pos)
 
+    if horizon > HORIZON_LIM+2 && (abs(rel_state.x) > 1.05*XY_LIM || abs(rel_state.y) > 1.05*XY_LIM)
+        return flight_edge_cost_nominal(u,v,d)
+    end
+
     # Initialize with additional distance cost, if any
-    cost = FLIGHT_COEFFICIENT*max(0,point_norm(rel_pos) - HORIZON_LIM*sqrt(2))
+    cost = FLIGHT_COEFFICIENT*max(0,point_norm(rel_pos) - XY_LIM*1.05*sqrt(2))
 
     if horizon < HORIZON_LIM
         hopon_state = ControlledHopOnStateAugmented(rel_state,false,horizon)
@@ -87,5 +92,9 @@ function flight_edge_cost_valuefn(udm::UDM, hopon_policy::PartialControlHopOnOff
         cost += -value(hopon_policy.out_horizon_policy, hopon_outhor_state) + addtn_time_cost
     end
 
-    return cost + HOP_REWARD
+    cost = cost + HOP_REWARD
+
+    #println("Valuefn edge - ",u.idx," to ",v.idx," of cost ",cost)
+
+    return cost
 end

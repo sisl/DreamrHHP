@@ -55,6 +55,7 @@ function process_neighbors_implicit!(
             Graphs.discover_vertex!(visitor, graph.vertices[u], graph.vertices[iv], dv)
 
             state.hmap[iv] = push!(state.heap, AStarHEntry(iv, dv, dv + heuristic(graph.vertices[iv])))
+            # println(iv," pushed on heap with fvalue ",dv + heuristic(graph.vertices[iv]))
 
         elseif v_color == 1
             dv = du + edge_wt_fn(graph.vertices[u], graph.vertices[iv])
@@ -64,6 +65,7 @@ function process_neighbors_implicit!(
 
                 Graphs.update_vertex!(visitor, graph.vertices[u], graph.vertices[iv], dv)
                 update!(state.heap, state.hmap[iv], AStarHEntry(iv, dv, dv + heuristic(graph.vertices[iv])))
+                # println(iv," updated on heap with fvalue ",dv + heuristic(graph.vertices[iv]))
             end
         end
     end
