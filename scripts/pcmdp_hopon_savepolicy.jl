@@ -38,10 +38,12 @@ info("Solving in-horizon policy")
 in_hor_approx = LocalGIFunctionApproximator(hopon_grid, in_hor_grid_term_values)
 
 approx_hopon_inhorizon_solver = LocalApproximationValueIterationSolver(in_hor_approx, max_iterations=1, verbose=true,
-                                                            is_mdp_generative=true, n_generative_samples=20,
+                                                            is_mdp_generative=true, n_generative_samples=MC_GENERATIVE_NUMSAMPLES,
                                                             terminal_costs_set=true)
 approx_hopon_inhorizon_policy = solve(approx_hopon_inhorizon_solver, pc_hopon_mdp)
 
+
+##################### Do work specific for out of horizon policy
 outhor_grid_termvals = zeros(length(grid_vertices))
 for (i,vect) in enumerate(grid_vertices)
   state = convert_s(ControlledHopOnStateAugmented, vect, pc_hopon_mdp)
@@ -52,11 +54,9 @@ for (i,vect) in enumerate(grid_vertices)
   end
 end
 
-
-##################### Do work specific for out of horizon policy
 out_hor_approx_augmented = LocalGIFunctionApproximator(hopon_grid, outhor_grid_termvals)
 approx_hopon_outhorizon_solver_augmented = LocalApproximationValueIterationSolver(out_hor_approx_augmented, max_iterations=1, verbose=true,
-                                                            is_mdp_generative=true, n_generative_samples=20,
+                                                            is_mdp_generative=true, n_generative_samples=MC_GENERATIVE_NUMSAMPLES,
                                                             terminal_costs_set=true)
 solve(approx_hopon_outhorizon_solver_augmented, pc_hopon_mdp)
 
@@ -84,4 +84,4 @@ approx_hopon_outhorizon_policy = LocalApproximationValueIterationPolicy(out_hor_
 
 # Now create full policy
 hopon_policy = PartialControlHopOnOffPolicy(approx_hopon_inhorizon_policy, approx_hopon_outhorizon_policy, ordered_actions(pc_hopon_mdp))
-save("hopon_generative_unitgrid_paramset2.jld","policy",hopon_policy)
+save("hopon_generative_unitgrid_paramset3.jld","policy",hopon_policy)

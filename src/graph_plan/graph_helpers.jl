@@ -75,7 +75,7 @@ function flight_edge_cost_valuefn(udm::UDM, hopon_policy::PartialControlHopOnOff
     rel_pos = Point(u.pos.x - v.pos.x, u.pos.y - v.pos.y)
     rel_state = get_state_at_rest(udm, rel_pos)
 
-    if horizon > HORIZON_LIM+2 && (abs(rel_state.x) > 1.05*XY_LIM || abs(rel_state.y) > 1.05*XY_LIM)
+    if horizon > HORIZON_LIM+4 && (abs(rel_state.x) > 1.05*XY_LIM || abs(rel_state.y) > 1.05*XY_LIM)
         return flight_edge_cost_nominal(u,v,d)
     end
 
@@ -85,6 +85,7 @@ function flight_edge_cost_valuefn(udm::UDM, hopon_policy::PartialControlHopOnOff
     if horizon < HORIZON_LIM
         hopon_state = ControlledHopOnStateAugmented(rel_state,false,horizon)
         cost += -value(hopon_policy.in_horizon_policy,hopon_state)
+        cost = cost + HOP_REWARD
     else
         # Use outhorizon cost but also additional cost for time and/or distance
         addtn_time_cost = TIME_COEFFICIENT*(horizon - HORIZON_LIM)
@@ -92,9 +93,7 @@ function flight_edge_cost_valuefn(udm::UDM, hopon_policy::PartialControlHopOnOff
         cost += -value(hopon_policy.out_horizon_policy, hopon_outhor_state) + addtn_time_cost
     end
 
-    cost = cost + HOP_REWARD
-
-    #println("Valuefn edge - ",u.idx," to ",v.idx," of cost ",cost)
+    # println("Valuefn edge - ",u.idx," to ",v.idx," of cost ",cost)
 
     return cost
 end

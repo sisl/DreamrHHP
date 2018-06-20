@@ -34,6 +34,8 @@ mutable struct HopOffAction
     hopaction::HOP_ACTION
 end
 
+
+
 ######################## HOPOFF MDP ##########################
 mutable struct HopOffMDP <: POMDPs.MDP{HopOffStateAugmented,HopOffAction}
     actions::Vector{HopOffAction}
@@ -64,11 +66,6 @@ function terminalreward(mdp::HopOffMDP, s::HopOffStateAugmented)
 
     if s.oncar == true
         # Still on car at zero horizon
-        return -HOP_REWARD
-    end
-
-    # Now not on car, but if not at end of horizon, penalize
-    if s.horizon > 0
         return -HOP_REWARD
     end
 
@@ -285,16 +282,7 @@ function reward(mdp::ControlledMultiRotorHopOnMDP, s::ControlledHopOnStateAugmen
     cost = TIME_COEFFICIENT*MDP_TIMESTEP
 
     if a.uavaction != nothing
-
-        old_point::Point = Point(s.rel_uavstate.x, s.rel_uavstate.y)
-        new_point::Point = Point(sp.rel_uavstate.x, sp.rel_uavstate.y)
-        dyn_dist::Float64 = point_dist(old_point, new_point)
-
-        if dyn_dist < EPSILON && sqrt(s.rel_uavstate.xdot^2 + s.rel_uavstate.ydot^2) < EPSILON
-            cost += HOVER_COEFFICIENT*MDP_TIMESTEP
-        else
-            cost += FLIGHT_COEFFICIENT*dyn_dist
-        end
+        cost += dynamics_cost(mdp.dynamics, s.rel_uavstate, sp.rel_uavstate)
     end
 
     # For the other action, no additional cost accrued
@@ -466,5 +454,91 @@ end
 
 function POMDPs.convert_s(::Type{ControlledHopOnStateAugmented}, v::AbstractVector{Float64}, mdp::ControlledMultiRotorHopOnMDP)
   s = ControlledHopOnStateAugmented(MultiRotorUAVState(v[1],v[2],v[3],v[4]),convert(Bool,v[5]), convert(Int64,v[6]))
+  return s
+end
+
+
+
+
+###################### UNCONSTRAINED FLIGHT MDP ######################
+struct FlightAction{UA <: UAVAction}
+    action_idx::Int
+    uav_action::UA
+end
+
+mutable struct UnconstrainedFlightMDP{US <: UAVState, FA <: FlightAction, UDM <: UAVDynamicsModel} <: POMDPs.MDP{US, FA}
+    dynamics::UDM
+    discount::Float64
+    actions::Vector{FA}
+end
+
+actions(mdp::UnconstrainedFlightMDP) = mdp.actions
+actions(mdp::UnconstrainedFlightMDP, s::US) where {US<:UAVState} = mdp.actions
+n_actions(mdp::UnconstrainedFlightMDP) = length(mdp.actions)
+discount(mdp::UnconstrainedFlightMDP) = mdp.discount # NOTE - Needs to be < 1.0 as infinite horizon problem
+
+
+function UnconstrainedFlightMDP(dynamics::MultiRotorUAVDynamicsModel, discount::Float64)
+
+    multi_rotor_flight_actions = Vector{FlightAction{MultiRotorUAVAction}}()
+    idx::Int64 = 1
+
+    acc_vals = linspace(-ACCELERATION_LIM,ACCELERATION_LIM,ACCELERATION_NUMVALS)
+
+    for xddot in acc_vals
+        for yddot in acc_vals
+            push!(multi_rotor_flight_actions,FlightAction(idx,MultiRotorUAVAction(xddot,yddot)))
+            idx+=1
+        end
+    end
+
+    return UnconstrainedFlightMDP{MultiRotorUAVState, FlightAction{MultiRotorUAVAction}, typeof(dynamics)}(dynamics, discount, multi_rotor_flight_actions)
+end
+
+function action_index(mdp::UnconstrainedFlightMDP, a::FlightAction)
+    return a.action_idx
+end
+
+# TODO : Assume that all UAVStates have x and y 
+function isterminal(mdp::UnconstrainedFlightMDP, s::US) where {US <: UAVState}
+    curr_pos = Point(s.x, s.y)
+    return point_norm(curr_pos) < MDP_TIMESTEP*HOP_DISTANCE_THRESHOLD
+end
+
+function generate_sr(mdp::UnconstrainedFlightMDP, s::US, a::FlightAction, rng::RNG=Base.GLOBAL_RNG) where {US <: UAVState, RNG <: AbstractRNG}
+    
+    cost = TIME_COEFFICIENT*MDP_TIMESTEP
+
+    new_uavstate = next_state(mdp.dynamics, s, a.uav_action, rng)
+    cost += dynamics_cost(mdp.dynamics, s, new_uavstate)
+
+    return new_uavstate, -cost
+end
+
+function reward(mdp::UnconstrainedFlightMDP, s::US, a::FlightAction, sp::US) where {US <: UAVState}
+
+    cost = TIME_COEFFICIENT*MDP_TIMESTEP
+    cost += dynamics_cost(mdp.dynamics, s, sp.rel_uavstate)
+
+    return -cost 
+end
+
+function terminalreward(mdp::UnconstrainedFlightMDP, s::US) where {US <: UAVState}
+
+    if !isterminal(mdp,s)
+        return 0.0
+    end
+
+    return HOP_REWARD
+end
+
+# State conversion functions
+function POMDPs.convert_s(::Type{V} where V <: AbstractVector{Float64}, s::MultiRotorUAVState, mdp::UnconstrainedFlightMDP)
+  v = SVector{4,Float64}(s.x, s.y, s.xdot, s.ydot)
+  return v
+end
+
+function POMDPs.convert_s(::Type{MultiRotorUAVState}, v::AbstractVector{Float64}, mdp::UnconstrainedFlightMDP)
+  s = MultiRotorUAVState(v[1],v[2],v[3],v[4])
   return s
 end

@@ -8,7 +8,7 @@ using LocalApproximationValueIteration
 using JLD
 using JSON
 using HitchhikingDrones
-
+using Logging
 
 
 # NOTE - If the macro action is at a stage outside the bounds of the drone, just fly on the st.line path
@@ -16,11 +16,15 @@ using HitchhikingDrones
 
 @enum MODE GRAPH_PLAN=1 FLIGHT=2 COAST=3
 
+Logging.configure(level=WARNING)
+
 
 # Read in the episode filename from args
-ep_file = "../data/test-3-120-to-150.json"
-hopon_file = "policies/hopon_generative_unitgrid_paramset2.jld"
-hopoff_file = "policies/hopoff.jld"
+ep_file = ARGS[1]
+to_log = ARGS[2]
+hopon_file = "policies/hopon_generative_unitgrid_paramset3.jld"
+hopoff_file = "policies/hopoff_paramset3.jld"
+flight_file = "policies/unconstr_flight_generative_unitgrid_paramset3.jld"
 
 episode_dict = Dict()
 open(ep_file,"r") do f
@@ -52,12 +56,26 @@ sdmc_sim = SDMCSimulator(episode_dict["epochs"], uav_dynamics, start_pos, goal_p
 # Load policies
 hopon_policy = load(hopon_file,"policy")
 hopoff_policy = load(hopoff_file,"policy")
+flight_policy = load(flight_file,"flight_policy")
 
 # Create graph solution
 
 graph_planner = GraphSolution(drone)
 setup_graph(graph_planner, start_pos, goal_pos, get_epoch0_dict(sdmc_sim))
 flight_edge_wt_fn(u,v) = flight_edge_cost_valuefn(uav_dynamics, hopon_policy, u, v, drone)
+
+
+log_output = false
+log_soln_dict = Dict()
+if to_log == "log"
+    log_output = true
+    log_fn = ARGS[3]
+    log_soln_dict["start_pos"] = episode_dict["start_pos"]
+    log_soln_dict["goal_pos"] = episode_dict["goal_pos"]
+    log_soln_dict["epochs"] = Dict()
+    log_soln_dict["epochs"][1] = Dict("car-info"=>episode_dict["epochs"]["0"]["car-info"])
+    log_soln_dict["epochs"][1]["drone-info"] = Dict("pos"=>[start_pos.x,start_pos.y], "on_car"=>"")
+end
 
 
 # Initialize plan
@@ -158,7 +176,12 @@ for epoch = 1:num_epochs
                 end
             end
         else
-            sdmc_action = unconstrained_flight_action(rel_uavstate)
+            if abs(rel_uavstate.x) > 1.05*XY_LIM || abs(rel_uavstate.y) > 1.05*XY_LIM
+                sdmc_action = unconstrained_flight_action(rel_uavstate)
+            else
+                best_action = action(flight_policy, rel_uavstate)
+                sdmc_action = best_action.uav_action
+            end
         end
 
     else
@@ -192,6 +215,12 @@ for epoch = 1:num_epochs
     curr_state, reward, is_terminal, epoch_info_dict = step_SDMC(sdmc_sim, sdmc_action)
     curr_time = epoch_info_dict["time"]
     episode_reward += reward
+
+    if log_output
+        log_soln_dict["epochs"][epoch+1] = Dict("car-info"=>epoch_info_dict, 
+                                "drone-info"=>Dict("pos"=>[curr_state.uav_state.x, curr_state.uav_state.y],
+                                                    "on_car"=>curr_state.car_id))
+    end
 
     if is_terminal
         println("SUCCESS!")
@@ -231,4 +260,10 @@ end
 
 if is_success != true
     println("Did not succeed!")
+else
+    if log_output
+        open(log_fn,"w") do f
+            JSON.print(f, log_soln_dict, 2)
+        end
+    end
 end

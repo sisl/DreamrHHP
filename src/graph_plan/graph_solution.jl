@@ -166,7 +166,7 @@ end
 
 
 function edge_weight_function_recompute(flight_edge_wt_fn::Function, gs::GraphSolution, u::CarDroneVertex, v::CarDroneVertex)
-    if u.is_car && v.is_car
+    if u.is_car && v.is_car && u.car_id == v.car_id 
         return coast_edge_cost(u,v)
     elseif !v.is_car # Flight edge to drone vertex
         return flight_edge_cost_nominal(u,v,gs.drone)
@@ -178,10 +178,10 @@ end
 
 # TODO - Should coast edge also use value function????
 function edge_weight_function_lookup(flight_edge_wt_fn::Function, gs::GraphSolution, u::CarDroneVertex, v::CarDroneVertex)
-    if u.is_car && v.is_car
-        return coast_edge_cost(u,v)
+    if u.is_car && v.is_car && u.car_id == v.car_id  
+        edge_weight_val = coast_edge_cost(u,v)
     elseif !v.is_car # Flight edge to drone vertex
-        return flight_edge_cost_nominal(u,v,gs.drone)
+        edge_weight_val = flight_edge_cost_nominal(u,v,gs.drone)
     else
         # Constrained flight edge
         edge_weight_val = get(gs.flight_edge_wts, (u,v), Inf)
@@ -198,6 +198,8 @@ function edge_weight_function_lookup(flight_edge_wt_fn::Function, gs::GraphSolut
                 gs.flight_edge_wts[(u.idx,v.idx)] = edge_weight_val
             end
         end
+
+        # println(u, " to ",v," - cost ",edge_weight_val)
 
         # Return the appropriate value
         return edge_weight_val
@@ -226,7 +228,8 @@ function plan_from_next_start(gs::GraphSolution, flight_edge_wt_fn::Function, va
 
     # Set up heuristic and edge_weight_functions
     # TODO : What's the right way to just do this once?
-    heuristic(v) = astar_heuristic(gs, v)
+    # heuristic(v) = astar_heuristic(gs, v)
+    heuristic(v) = 0.0
     edge_wt_fn(u,v) = edge_weight_function_lookup(flight_edge_wt_fn, gs, u, v)
 
     println("Planning from - ",gs.car_drone_graph.vertices[gs.next_start_idx])
@@ -378,7 +381,7 @@ function Graphs.include_vertex!(vis::GoalVisitorImplicit, u::CarDroneVertex, v::
         # end
         # NOTE : If this is the first coast vertex, don't do any more
         # Must do at least 1 coast edge
-        if u.is_car == false || u.car_id != v.car_id
+        if u.is_car == false || u.car_id != v.car_id || u.idx == v.idx
             return true
         end
     end

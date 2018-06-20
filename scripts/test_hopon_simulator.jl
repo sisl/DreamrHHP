@@ -10,20 +10,8 @@ using Distributions
 
 using HitchhikingDrones
 
-function POMDPs.convert_s(::Type{V} where V <: AbstractVector{Float64}, s::ControlledHopOnStateAugmented, mdp::ControlledMultiRotorHopOnMDP)
-  v = SVector{6,Float64}(s.rel_uavstate.x, s.rel_uavstate.y, s.rel_uavstate.xdot, s.rel_uavstate.ydot,
-                         convert(Float64,s.control_transfer), convert(Float64,s.horizon))
-  return v
-end
-
-function POMDPs.convert_s(::Type{ControlledHopOnStateAugmented}, v::AbstractVector{Float64}, mdp::ControlledMultiRotorHopOnMDP)
-  s = ControlledHopOnStateAugmented(MultiRotorUAVState(v[1],v[2],v[3],v[4]),convert(Bool,v[5]), convert(Int64,v[6]))
-  return s
-end
-
-
 # LOAD POLICY HERE - SWAP OUT AS NEEDED
-hopon_policy = load("hopon_generative_unitgrid_paramset2.jld","policy")
+hopon_policy = load("policies/hopon_generative_unitgrid_paramset3.jld","policy")
 
 rng = MersenneTwister(2)
 NUM_EPISODES = 10
@@ -132,6 +120,7 @@ for i = 1:NUM_EPISODES
 
         # If control transferred, also break
         if curr_state.control_transfer == true
+            println("ABORTED!")
             reward -= CONTROL_TRANSFER_PENALTY
             break
         end

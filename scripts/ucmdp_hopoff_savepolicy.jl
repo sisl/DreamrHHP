@@ -54,4 +54,4 @@ approx_hopoff_outhorizon_policy = LocalApproximationValueIterationPolicy(out_hor
                                         uc_hopoff_mdp, approx_hopoff_outhorizon_solver_augmented.is_mdp_generative,
                                         approx_hopoff_outhorizon_solver_augmented.n_generative_samples)
 hopoff_policy = PartialControlHopOnOffPolicy(approx_hopoff_inhorizon_policy, approx_hopoff_outhorizon_policy, ordered_actions(uc_hopoff_mdp))
-save("hopoff.jld","policy",hopoff_policy)
+save("hopoff_paramset3.jld","policy",hopoff_policy)

@@ -61,6 +61,7 @@ export
     HopOffMDP,
     ControlledMultiRotorHopOnMDP,
     PartialControlHopOnOffPolicy,
+    UnconstrainedFlightMDP,
     hopon_policy_action,
     hopoff_policy_action,
     outhor_outdist_action,
@@ -89,7 +90,9 @@ export
     ACC_NOISE_STD,
     CONTROL_TRANSFER_PENALTY,
     HOP_DISTANCE_THRESHOLD,
-    HOP_REWARD
+    HOP_REWARD,
+    MC_GENERATIVE_NUMSAMPLES,
+    MC_TIME_NUMSAMPLES
 
 # Types information
 export

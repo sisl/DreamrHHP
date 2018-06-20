@@ -98,7 +98,7 @@ function dynamics_cost(model::MultiRotorUAVDynamicsModel, state::MultiRotorUAVSt
 
     cost = 0.0
 
-    if dyn_dist < EPSILON && sqrt(next_state.xdot^2 + next_state.ydot^2) < EPSILON
+    if dyn_dist < model.timestep*EPSILON && sqrt(next_state.xdot^2 + next_state.ydot^2) < model.timestep*EPSILON
         cost += HOVER_COEFFICIENT*model.timestep
     else
         cost += FLIGHT_COEFFICIENT*dyn_dist

@@ -45,10 +45,10 @@ const WAYPT_TIME_CHANGE_THRESHOLD = MDP_TIMESTEP/2.0
 
 # Cost parameters
 const FLIGHT_COEFFICIENT = 1000.0
-const TIME_COEFFICIENT = 0.5
-const HOP_COEFFICIENT = 10.0
-const HOVER_COEFFICIENT = 1.0
-const HOP_REWARD = 100.0
+const TIME_COEFFICIENT = 1.0
+# const HOP_COEFFICIENT = 10.0
+const HOVER_COEFFICIENT = 10.0
+const HOP_REWARD = 1800.0 # High enough that in average circumstances it does not abort = 1000*sqrt(2) + 1*5*HORIZON_LIM 
 const CONTROL_TRANSFER_PENALTY = 100.0
 const INVALID_ACTION_PENALTY = 10.0 # For the real simulator
 const SUCCESS_REWARD = 1000.0 # For the real simulator
@@ -59,3 +59,4 @@ const CAR_TIME_STD = MDP_TIMESTEP/2.0
 const DELAY_SPEEDUP_PROB = 0.2
 const MAX_DELAY_SPEEDUP = 2.0*MDP_TIMESTEP
 const MC_TIME_NUMSAMPLES = 20
+const MC_GENERATIVE_NUMSAMPLES = 20

@@ -60,7 +60,7 @@ function step_SDMC(sdmc::SDMCSimulator, action::SDMCAction)
                 uav_pos::Point = Point(sdmc.state.uav_state.x, sdmc.state.uav_state.y)
 
                 if point_dist(car_pos, uav_pos) < 2*MDP_TIMESTEP*HOP_DISTANCE_THRESHOLD
-                    info("Successful hop on to ",hopon_car_id)
+                    warn("Successful hop on to ",hopon_car_id, "at epoch ",sdmc.epoch_counter)
                     curr_car_pos = Point(epoch_car_info[hopon_car_id]["pos"][1],epoch_car_info[hopon_car_id]["pos"][2])
                     sdmc.state.uav_state = get_state_at_rest(sdmc.uav_dynamics, curr_car_pos)
                     sdmc.state.on_car = true
@@ -89,6 +89,7 @@ function step_SDMC(sdmc::SDMCSimulator, action::SDMCAction)
                 warn("Cannot Hop Off when not on car!")
                 reward += -INVALID_ACTION_PENALTY
             else
+                warn("Successful hopoff from car ",sdmc.state.car_id, " at epoch ",sdmc.epoch_counter)
                 current_car = sdmc.state.car_id
                 curr_car_pos = Point(epoch_car_info[current_car]["pos"][1],epoch_car_info[current_car]["pos"][2])
                 sdmc.state.uav_state = get_state_at_rest(sdmc.uav_dynamics, curr_car_pos)
