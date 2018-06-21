@@ -62,7 +62,10 @@ flight_policy = load(flight_file,"flight_policy")
 
 graph_planner = GraphSolution(drone)
 setup_graph(graph_planner, start_pos, goal_pos, get_epoch0_dict(sdmc_sim))
+
+# TODO : Check this
 flight_edge_wt_fn(u,v) = flight_edge_cost_valuefn(uav_dynamics, hopon_policy, u, v, drone)
+#flight_edge_wt_fn(u,v) = flight_edge_cost_nominal(u, v, drone)
 
 
 log_output = false
@@ -87,6 +90,7 @@ curr_time = 0.0
 episode_reward = 0.0
 is_success = false
 
+used_epochs = 0
 
 for epoch = 1:num_epochs
 
@@ -217,13 +221,14 @@ for epoch = 1:num_epochs
     episode_reward += reward
 
     if log_output
-        log_soln_dict["epochs"][epoch+1] = Dict("car-info"=>epoch_info_dict, 
+        log_soln_dict["epochs"][epoch+1] = Dict("car-info"=>epoch_info_dict["car-info"], 
                                 "drone-info"=>Dict("pos"=>[curr_state.uav_state.x, curr_state.uav_state.y],
                                                     "on_car"=>curr_state.car_id))
     end
 
     if is_terminal
         println("SUCCESS!")
+        used_epochs = epoch
         is_success = true
         break
     end
@@ -234,7 +239,7 @@ for epoch = 1:num_epochs
     # If there is a need to replan, check if it is close enough in space (and time) to macro action end/start vertex
     if need_to_replan == true
         println(curr_state)
-        readline()
+        # readline()
         mode = GRAPH_PLAN
         # If not on a car, then hopped off or aborted in mid-flight or missed connection right at the end
         # In all such cases add a new drone vertex and replan
@@ -257,6 +262,8 @@ for epoch = 1:num_epochs
         end
     end
 end
+
+log_soln_dict["num_epochs"] = used_epochs + 1
 
 if is_success != true
     println("Did not succeed!")

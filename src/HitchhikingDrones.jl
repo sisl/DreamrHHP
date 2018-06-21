@@ -11,6 +11,9 @@ using POMDPs
 using POMDPToolbox
 using LocalApproximationValueIteration
 using Logging
+using Cairo 
+using Gadfly
+using Colors
 
 
 # package code goes here
@@ -118,11 +121,16 @@ export
     get_epoch0_dict
 
 
+# General utils
+export
+    plot_car_route,
+    plot_drone_and_active_cars_epoch!
 
 
 
 include("types.jl")
 include("parameters.jl")
+include("plot_utils.jl")
 include("macro_action_policy/uavdynamics.jl")
 include("macro_action_policy/partial_control_mdp.jl")
 include("graph_plan/astar_visitor_light.jl")

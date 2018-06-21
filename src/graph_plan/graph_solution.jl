@@ -228,8 +228,8 @@ function plan_from_next_start(gs::GraphSolution, flight_edge_wt_fn::Function, va
 
     # Set up heuristic and edge_weight_functions
     # TODO : What's the right way to just do this once?
-    # heuristic(v) = astar_heuristic(gs, v)
-    heuristic(v) = 0.0
+    heuristic(v) = astar_heuristic(gs, v)
+    # heuristic(v) = 0.0
     edge_wt_fn(u,v) = edge_weight_function_lookup(flight_edge_wt_fn, gs, u, v)
 
     println("Planning from - ",gs.car_drone_graph.vertices[gs.next_start_idx])

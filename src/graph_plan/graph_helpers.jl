@@ -85,7 +85,7 @@ function flight_edge_cost_valuefn(udm::UDM, hopon_policy::PartialControlHopOnOff
     if horizon < HORIZON_LIM
         hopon_state = ControlledHopOnStateAugmented(rel_state,false,horizon)
         cost += -value(hopon_policy.in_horizon_policy,hopon_state)
-        cost = cost + HOP_REWARD
+        cost = cost
     else
         # Use outhorizon cost but also additional cost for time and/or distance
         addtn_time_cost = TIME_COEFFICIENT*(horizon - HORIZON_LIM)
