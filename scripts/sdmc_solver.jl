@@ -42,12 +42,8 @@ num_epochs = episode_dict["num_epochs"]-1
 # Define Mersenne Twister for reproducibility
 rng = MersenneTwister(2)
 
-# Create dynamics model and MDP
+# Create dynamics model and drone
 uav_dynamics = MultiRotorUAVDynamicsModel(MDP_TIMESTEP, ACC_NOISE_STD)
-pc_hopon_mdp = ControlledMultiRotorHopOnMDP(uav_dynamics)
-uc_hopoff_mdp = HopOffMDP()
-
-# Create drone
 drone = Drone()
 
 # Create SDMC Simulator and get initial epoch
@@ -267,7 +263,9 @@ log_soln_dict["num_epochs"] = used_epochs + 1
 
 if is_success != true
     println("Did not succeed!")
+    log_soln_dict["success"] = false
 else
+    log_soln_dict["success"] = true
     if log_output
         open(log_fn,"w") do f
             JSON.print(f, log_soln_dict, 2)
