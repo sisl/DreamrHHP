@@ -2,18 +2,27 @@ __precompile__()
 module HitchhikingDrones
 
 using Base
-using Graphs
 using DataStructures
 using StaticArrays
 using Distributions
+using Logging
+
+# For plotting
+using Cairo 
+using Gadfly
+using Colors
+
+# Graph planning/MPC stuff
+using Graphs
+using JuMP
+using Ipopt
+using NLopt
+
+# POMDP Stuff
 using POMDPModels
 using POMDPs
 using POMDPToolbox
 using LocalApproximationValueIteration
-using Logging
-using Cairo 
-using Gadfly
-using Colors
 
 
 # package code goes here
@@ -52,7 +61,8 @@ export
     add_new_start,
     update_next_start,
     plan_from_next_start,
-    get_future_macro_actions_values
+    get_future_macro_actions_values,
+    get_flight_mpc_action_multirotor
 
 # Partial Control MDP stuff
 export
@@ -140,6 +150,7 @@ include("macro_action_policy/partial_control_mdp.jl")
 include("graph_plan/astar_visitor_light.jl")
 include("graph_plan/graph_helpers.jl")
 include("graph_plan/graph_solution.jl")
+include("graph_plan/mpc_utils.jl")
 include("simulators/hoponoff_singlecar_simulator.jl")
 include("simulators/sdmc_simulator.jl")
 
