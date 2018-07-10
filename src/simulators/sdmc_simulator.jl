@@ -102,7 +102,6 @@ function step_SDMC(sdmc::SDMCSimulator, action::SDMCAction)
     is_terminal::Bool = false
     # Check if at goal
     if point_dist(Point(sdmc.state.uav_state.x, sdmc.state.uav_state.y), sdmc.goal_pos) < 5*MDP_TIMESTEP*HOP_DISTANCE_THRESHOLD
-        reward += SUCCESS_REWARD
         is_terminal = true
     end
 

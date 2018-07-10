@@ -60,8 +60,8 @@ graph_planner = GraphSolution(drone)
 setup_graph(graph_planner, start_pos, goal_pos, get_epoch0_dict(sdmc_sim))
 
 # TODO : Check this
-flight_edge_wt_fn(u,v) = flight_edge_cost_valuefn(uav_dynamics, hopon_policy, u, v, drone)
-#flight_edge_wt_fn(u,v) = flight_edge_cost_nominal(u, v, drone)
+#flight_edge_wt_fn(u,v) = flight_edge_cost_valuefn(uav_dynamics, hopon_policy, u, v, drone)
+flight_edge_wt_fn(u,v) = flight_edge_cost_nominal(u, v, drone)
 
 
 log_output = false
@@ -124,6 +124,7 @@ for epoch = 1:num_epochs
     curr_fin_time = next_vertex.time_stamp - curr_time
     curr_dist = point_dist(Point(curr_state.uav_state.x,curr_state.uav_state.y), next_vertex.pos)
 
+    # TODO - Get rid of a lot of the handcoded logic
 
     if mode == FLIGHT
         @assert curr_state.on_car == false
@@ -176,6 +177,7 @@ for epoch = 1:num_epochs
                 end
             end
         else
+            # Should just use MPC here (or expanded ucmdp)
             if abs(rel_uavstate.x) > 1.05*XY_LIM || abs(rel_uavstate.y) > 1.05*XY_LIM
                 sdmc_action = unconstrained_flight_action(rel_uavstate)
             else
@@ -223,7 +225,7 @@ for epoch = 1:num_epochs
     end
 
     if is_terminal
-        println("SUCCESS!")
+        println("SUCCESS with reward - ",episode_reward)
         used_epochs = epoch
         is_success = true
         break

@@ -1,16 +1,16 @@
-function get_flight_mpc_action_multirotor(curr_state::SDMCState, next_vertex::CarDroneVertex, curr_fin_horizon::Int64)
+function get_flight_mpc_action_multirotor(curr_state::MultiRotorUAVState, next_vertex::CarDroneVertex, curr_fin_horizon::Int64)
 
     # MPC timesteps depends on finish horizon
     N = curr_fin_horizon > HORIZON_LIM ? HORIZON_LIM : curr_fin_horizon
 
     # Setup solver
-    solver = IpoptSolver(max_iter=100)
+    solver = IpoptSolver(max_iter=100,print_level=0)
 
     # Obtain start and goal in terms of curr_state and next_vertex
-    curr_vect = SVector{4, Float64}(curr_state.uav_state.x, curr_state.uav_state.y, curr_state.uav_state.xdot, curr_state.uav_state.ydot)
+    curr_vect = SVector{4, Float64}(curr_state.x, curr_state.y, curr_state.xdot, curr_state.ydot)
     curr_goal_pos = SVector{2,Float64}(next_vertex.pos.x, next_vertex.pos.y)
 
-    m = Model(solver = solver)
+    m = JuMP.Model(solver = solver)
 
     @variable(m, uav_state[1:4*(N+1)])
 
@@ -46,7 +46,7 @@ function get_flight_mpc_action_multirotor(curr_state::SDMCState, next_vertex::Ca
         @NLconstraint(m, uav_state[4*i+4]-uav_state[4*(i-1)+4] - acc[2*i]*MDP_TIMESTEP == 0)
     end
 
-    status = solve(m)
+    status = JuMP.solve(m)
 
     accvals = getvalue(acc)
     xddotvals = accvals[1:2:end]

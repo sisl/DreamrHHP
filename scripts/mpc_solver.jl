@@ -116,11 +116,11 @@ for epoch = 1:num_epochs
                 curr_fin_horizon = convert(Int64, round(curr_fin_time/MDP_TIMESTEP))
 
                 # TODO : Checking criteria for abort (OR just replan each time?)
-                sdmc_action = get_flight_mpc_action(curr_state, next_vertex, curr_fin_horizon)
+                sdmc_action = get_flight_mpc_action_multirotor(curr_state.uav_state, next_vertex, curr_fin_horizon)
             end
         else
             # Unconstrained flight action
-            sdmc_action = get_flight_mpc_action(curr_state, next_vertex, Inf)
+            sdmc_action = get_flight_mpc_action_multirotor(curr_state.uav_state, next_vertex, HORIZON_LIM)
         end
 
         # TODO : Alternative is to put replan=true
@@ -159,7 +159,7 @@ for epoch = 1:num_epochs
     end
 
     if is_terminal
-        println("SUCCESS!")
+        println("SUCCESS with reward - ",episode_reward)
         used_epochs = epoch
         is_success = true
         break
