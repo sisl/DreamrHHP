@@ -4,6 +4,7 @@
 deps/deps.jl
 *.json
 *.png
+data/plots/
 
 # MacOS stuff
 *.DS_Store
