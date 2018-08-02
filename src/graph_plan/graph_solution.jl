@@ -180,8 +180,8 @@ end
 function edge_weight_function_lookup(flight_edge_wt_fn::Function, gs::GraphSolution, u::CarDroneVertex, v::CarDroneVertex)
     if u.is_car && v.is_car && u.car_id == v.car_id  
         edge_weight_val = coast_edge_cost(u,v)
-    elseif !v.is_car # Flight edge to drone vertex
-        edge_weight_val = flight_edge_cost_nominal(u,v,gs.drone)
+    # elseif !v.is_car # Flight edge to drone vertex
+    #     edge_weight_val = flight_edge_cost_nominal(u,v,gs.drone)
     else
         # Constrained flight edge
         edge_weight_val = get(gs.flight_edge_wts, (u,v), Inf)
@@ -198,12 +198,12 @@ function edge_weight_function_lookup(flight_edge_wt_fn::Function, gs::GraphSolut
                 gs.flight_edge_wts[(u.idx,v.idx)] = edge_weight_val
             end
         end
-
-        # println(u, " to ",v," - cost ",edge_weight_val)
-
-        # Return the appropriate value
-        return edge_weight_val
     end
+
+    # println(u.idx, " to ",v.idx," - cost ",edge_weight_val)
+
+    # Return the appropriate value
+    return edge_weight_val
 end
 
 # If no new waypoints for car routes, iterate over car_routes using route_idx_range
@@ -232,7 +232,7 @@ function plan_from_next_start(gs::GraphSolution, flight_edge_wt_fn::Function, va
     # heuristic(v) = 0.0
     edge_wt_fn(u,v) = edge_weight_function_lookup(flight_edge_wt_fn, gs, u, v)
 
-    println("Planning from - ",gs.car_drone_graph.vertices[gs.next_start_idx])
+    #println("Planning from - ",gs.car_drone_graph.vertices[gs.next_start_idx])
 
     # Reset the considered cars dict for each vertex
     # Add the next start with empty set (so its successor can copy from it)
@@ -270,10 +270,10 @@ function plan_from_next_start(gs::GraphSolution, flight_edge_wt_fn::Function, va
 
     gs.curr_best_soln_value = astar_path_soln.dists[gs.goal_idx]
 
-    println("Curr soln idx path:")
-    for idx in gs.curr_soln_idx_path
-        println("Idx - ",idx," ; cost - ",astar_path_soln.dists[idx])
-    end
+    # println("Curr soln idx path:")
+    # for idx in gs.curr_soln_idx_path
+    #     println("Idx - ",idx," ; cost - ",astar_path_soln.dists[idx])
+    # end
 
 
     # now update the future macro_actions
@@ -317,9 +317,9 @@ function plan_from_next_start(gs::GraphSolution, flight_edge_wt_fn::Function, va
     # Append the last one regardless
     last_val::Float64 = gs.curr_best_soln_value - astar_path_soln.dists[last_idx]
     push!(gs.future_macro_actions_values, ((gs.car_drone_graph.vertices[last_idx], gs.car_drone_graph.vertices[gs.goal_idx]), last_val))
-    for mav in gs.future_macro_actions_values
-        println(mav)
-    end
+    # for mav in gs.future_macro_actions_values
+    #     println(mav)
+    # end
 end
 
 
@@ -393,7 +393,7 @@ function Graphs.include_vertex!(vis::GoalVisitorImplicit, u::CarDroneVertex, v::
             continue
         end
 
-        # println("Considering ",car_id)
+        # println("Considering ",car_id, " from ",v.car_id)
 
         # Iterate over car route vertices
         car_route_idxs::Vector{Int} = car_route_idx_list_simple(vis.gs, car_id)
@@ -405,6 +405,10 @@ function Graphs.include_vertex!(vis::GoalVisitorImplicit, u::CarDroneVertex, v::
                 push!(nbrs,next_idx)
             end
         end
+        # println("Car-Car Neighbors:")
+        # for n in nbrs
+        #         print(n,", ")
+        # end
     end
 
     # Iterate over remaining drone vertices and add flight edges to them

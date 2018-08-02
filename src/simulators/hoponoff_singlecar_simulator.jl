@@ -1,12 +1,11 @@
 mutable struct HopOnOffSingleCarSimulator
     timestep::Float64
     time_to_finish::Distributions.Normal{Float64}
-    mdp::Union{ControlledMultiRotorHopOnMDP,HopOffMDP}
     rng::AbstractRNG
 end
 
-function HopOnOffSingleCarSimulator(timestep::Float64,mdp::Union{ControlledMultiRotorHopOnMDP,HopOffMDP},rng::AbstractRNG=Base.GLOBAL_RNG)
-    return HopOnOffSingleCarSimulator(timestep,Distributions.Normal(0.0,CAR_TIME_STD),mdp,rng)
+function HopOnOffSingleCarSimulator(timestep::Float64,rng::AbstractRNG=Base.GLOBAL_RNG)
+    return HopOnOffSingleCarSimulator(timestep,Distributions.Normal(0.0,CAR_TIME_STD),rng)
 end
 
 function reset_sim(sim::HopOnOffSingleCarSimulator,meanval::Float64,stdval::Float64)
@@ -24,12 +23,8 @@ function sample_finish_time(sim::HopOnOffSingleCarSimulator)
 end
 
 
-function step_sim(sim::HopOnOffSingleCarSimulator, state::ControlledHopOnState, action::HopOnAction)
+function step_sim(sim::HopOnOffSingleCarSimulator) 
 
-    # First generate new state for UAV
-    new_state, reward = generate_sr(sim.mdp, state, action, sim.rng)
-
-    # Now update car state
     old_mean = mean(sim.time_to_finish)
     car_std = std(sim.time_to_finish)
 
@@ -66,5 +61,5 @@ function step_sim(sim::HopOnOffSingleCarSimulator, state::ControlledHopOnState, 
     # If too little time left, car is at end
     is_done::Bool =  (mean(sim.time_to_finish) < std(sim.time_to_finish))
 
-    return new_state, reward, is_done
+    return is_done
 end

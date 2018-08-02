@@ -47,37 +47,53 @@ end
 
 
 # Truncate positions to their bounds
-function truncated_state(state::MultiRotorUAVState)
+# function truncated_state(state::MultiRotorUAVState)
 
-    if state.xdot < -XYDOT_LIM
-        txdot = -XYDOT_LIM
-    elseif state.xdot > XYDOT_LIM
-        txdot = XYDOT_LIM
-    else
-        txdot = state.xdot
+#     if state.xdot < -XYDOT_LIM
+#         txdot = -XYDOT_LIM
+#     elseif state.xdot > XYDOT_LIM
+#         txdot = XYDOT_LIM
+#     else
+#         txdot = state.xdot
+#     end
+
+#     if state.ydot < -XYDOT_LIM
+#         tydot = -XYDOT_LIM
+#     elseif state.ydot > XYDOT_LIM
+#         tydot = XYDOT_LIM
+#     else
+#         tydot = state.ydot
+#     end
+
+#     return MultiRotorUAVState(state.x,state.y,txdot,tydot)
+
+# end
+
+function truncate_vel(vel::Float64)
+
+    if vel < -XYDOT_LIM
+        return -XYDOT_LIM
+    elseif vel > XYDOT_LIM
+        return XYDOT_LIM
     end
-
-    if state.ydot < -XYDOT_LIM
-        tydot = -XYDOT_LIM
-    elseif state.ydot > XYDOT_LIM
-        tydot = XYDOT_LIM
-    else
-        tydot = state.ydot
-    end
-
-    return MultiRotorUAVState(state.x,state.y,txdot,tydot)
-
+    
+    return vel
 end
 
 function apply_controls(model::MultiRotorUAVDynamicsModel, state::MultiRotorUAVState, xddot::Float64, yddot::Float64)
 
     # Update position and velocity exactly
-    x = state.x + state.xdot*model.timestep + 0.5*xddot*(model.timestep^2)
-    y = state.y + state.ydot*model.timestep + 0.5*yddot*(model.timestep^2)
-    xdot = state.xdot + xddot*model.timestep
-    ydot = state.ydot + yddot*model.timestep
+    xdot = truncate_vel(state.xdot + xddot*model.timestep)
+    ydot = truncate_vel(state.ydot + yddot*model.timestep)
 
-    return truncated_state(MultiRotorUAVState(x,y,xdot,ydot))
+    # Get true effective accelerations
+    true_xddot = (xdot - state.xdot)/model.timestep
+    true_yddot = (ydot - state.ydot)/model.timestep
+
+    x = state.x + state.xdot*model.timestep + 0.5*true_xddot*(model.timestep^2)
+    y = state.y + state.ydot*model.timestep + 0.5*true_yddot*(model.timestep^2)
+
+    return MultiRotorUAVState(x,y,xdot,ydot)
 end
 
 

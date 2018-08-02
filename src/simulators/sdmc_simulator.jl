@@ -54,12 +54,28 @@ function step_SDMC(sdmc::SDMCSimulator, action::SDMCAction)
                 warn("Cannot Hop On while on a car!")
                 reward += -INVALID_ACTION_PENALTY
             else
+                prev_epoch_car_info = sdmc.epochs_dict[string(sdmc.epoch_counter-1)]["car-info"]
+                next_epoch_car_info = sdmc.epochs_dict[string(sdmc.epoch_counter+1)]["car-info"]
+
                 hopon_car_id = action[2]
 
                 car_pos::Point = Point(epoch_car_info[hopon_car_id]["pos"][1],epoch_car_info[hopon_car_id]["pos"][2])
+                prev_car_pos::Point = Point(prev_epoch_car_info[hopon_car_id]["pos"][1],prev_epoch_car_info[hopon_car_id]["pos"][2])
+                next_car_pos::Point = Point(next_epoch_car_info[hopon_car_id]["pos"][1],next_epoch_car_info[hopon_car_id]["pos"][2])
+
                 uav_pos::Point = Point(sdmc.state.uav_state.x, sdmc.state.uav_state.y)
 
-                if point_dist(car_pos, uav_pos) < 2*MDP_TIMESTEP*HOP_DISTANCE_THRESHOLD
+                # println(car_pos)
+                # println(prev_car_pos)
+                # println(next_car_pos)
+
+                # println(uav_pos)
+
+                curr_speed = sqrt(sdmc.state.uav_state.xdot^2 + sdmc.state.uav_state.ydot^2)
+                
+                dist = min(point_dist(car_pos, uav_pos), point_dist(prev_car_pos,uav_pos), point_dist(next_car_pos,uav_pos))
+
+                if dist < HOP_DISTANCE_THRESHOLD*MDP_TIMESTEP && curr_speed < XYDOT_HOP_THRESH
                     warn("Successful hop on to ",hopon_car_id, "at epoch ",sdmc.epoch_counter)
                     curr_car_pos = Point(epoch_car_info[hopon_car_id]["pos"][1],epoch_car_info[hopon_car_id]["pos"][2])
                     sdmc.state.uav_state = get_state_at_rest(sdmc.uav_dynamics, curr_car_pos)
@@ -67,6 +83,10 @@ function step_SDMC(sdmc::SDMCSimulator, action::SDMCAction)
                     sdmc.state.car_id = hopon_car_id
                 else
                     warn("Too far from car to hop on!")
+                    # println("PREV CAR POS - ",prev_car_pos)
+                    # println("CAR POS - ",car_pos)
+                    # println("NEXT CAR POS - ",next_car_pos)
+                    # println("Distance is ",dist," and speed is ",curr_speed)
                     reward += -INVALID_ACTION_PENALTY
                 end
             end
@@ -100,8 +120,11 @@ function step_SDMC(sdmc::SDMCSimulator, action::SDMCAction)
     end
 
     is_terminal::Bool = false
+
+    curr_speed = sqrt(sdmc.state.uav_state.xdot^2 + sdmc.state.uav_state.ydot^2)
+
     # Check if at goal
-    if point_dist(Point(sdmc.state.uav_state.x, sdmc.state.uav_state.y), sdmc.goal_pos) < 5*MDP_TIMESTEP*HOP_DISTANCE_THRESHOLD
+    if point_dist(Point(sdmc.state.uav_state.x, sdmc.state.uav_state.y), sdmc.goal_pos) < MDP_TIMESTEP*HOP_DISTANCE_THRESHOLD && curr_speed < XYDOT_HOP_THRESH
         is_terminal = true
     end
 

@@ -5,13 +5,7 @@ importall POMDPs
 mutable struct ControlledHopOnStateAugmented
     # States pertaining to this subproblem
     rel_uavstate::US where {US <: UAVState}# RELATIVE to goal
-    control_transfer::Bool
     horizon::Int64 # POMDPs.jl has no explicit interface for finite horizon problems
-end
-
-mutable struct ControlledHopOnState
-    rel_uavstate::US where {US<:UAVState} # RELATIVE to goal
-    control_transfer::Bool
 end
 
 # For now, this just has the horizon as the dynamics depend on that of the car
@@ -35,15 +29,15 @@ mutable struct HopOffAction
 end
 
 
-
 ######################## HOPOFF MDP ##########################
 mutable struct HopOffMDP <: POMDPs.MDP{HopOffStateAugmented,HopOffAction}
     actions::Vector{HopOffAction}
+    terminal_costs_set::Bool
 end
 
 function HopOffMDP()
     hopoff_actions = [HopOffAction(1,STAY), HopOffAction(2,HOPOFF)]
-    return HopOffMDP(hopoff_actions)
+    return HopOffMDP(hopoff_actions,true)
 end
 
 actions(mdp::HopOffMDP) = mdp.actions
@@ -59,22 +53,6 @@ function isterminal(mdp::HopOffMDP, s::HopOffStateAugmented)
     return (s.oncar == false || s.horizon == 0)
 end
 
-function terminalreward(mdp::HopOffMDP, s::HopOffStateAugmented)
-    if !isterminal(mdp,s)
-        return 0.0
-    end
-
-    if s.oncar == true
-        # Still on car at zero horizon
-        return -HOP_REWARD
-    end
-
-    # Now we know it is off car at horizon 0, so reward
-    # NOTE : This means that the moment the car has more probability
-    # to finish at the next timestep than anything beyond that, it will hop off
-    return HOP_REWARD
-end
-
 function transition(mdp::HopOffMDP, s::HopOffStateAugmented, a::HopOffAction)
 
     if a.hopaction == STAY
@@ -85,6 +63,11 @@ function transition(mdp::HopOffMDP, s::HopOffStateAugmented, a::HopOffAction)
 end
 
 function reward(mdp::HopOffMDP, s::HopOffStateAugmented, a::HopOffAction, sp::HopOffStateAugmented)
+    if mdp.terminal_costs_set
+        if (sp.horizon == 0 && sp.oncar == true) || (sp.horizon > 0 && sp.oncar == false)
+            return -NO_HOPOFF_PENALTY
+        end
+    end
     return -(TIME_COEFFICIENT*MDP_TIMESTEP)
 end
 
@@ -110,6 +93,9 @@ end
 mutable struct ControlledMultiRotorHopOnMDP <: POMDPs.MDP{ControlledHopOnStateAugmented,HopOnAction}
     dynamics::MultiRotorUAVDynamicsModel
     actions::Vector{HopOnAction}
+    horizon_abort_penalty::Vector{Float64}
+    terminal_costs_set::Bool
+    no_hop_penalty::Float64
 end
 
 function ControlledMultiRotorHopOnMDP(dynamics::MultiRotorUAVDynamicsModel)
@@ -127,7 +113,7 @@ function ControlledMultiRotorHopOnMDP(dynamics::MultiRotorUAVDynamicsModel)
     end
     push!(multi_rotor_hopon_actions, HopOnAction(idx,nothing,true))
 
-    return ControlledMultiRotorHopOnMDP(dynamics,multi_rotor_hopon_actions)
+    return ControlledMultiRotorHopOnMDP(dynamics,multi_rotor_hopon_actions,Inf*ones(HORIZON_LIM),true,Inf)
 end
 
 
@@ -144,88 +130,10 @@ end
 # TODO - Need isterminal and a method to get immediate cost for s_c
 function isterminal(mdp::ControlledMultiRotorHopOnMDP, s::ControlledHopOnStateAugmented)
 
-    # First check if control has been transfered - true
-    if s.control_transfer == true || s.horizon == 0
-        return true
-    end
+    # If horizon is 0, then terminal
+    # s.rel_uavstate.x == Inf is an explicit terminal state that arises from terminal reward
+    return s.horizon <= 0
 
-    return false
-
-end
-
-function terminalreward(mdp::ControlledMultiRotorHopOnMDP, s::ControlledHopOnStateAugmented)
-
-    if !isterminal(mdp,s)
-        return 0.0
-    end
-
-    if s.control_transfer == true
-        return -CONTROL_TRANSFER_PENALTY
-    end
-
-    curr_pos = Point(s.rel_uavstate.x, s.rel_uavstate.y)
-
-    if point_norm(curr_pos) < HOP_DISTANCE_THRESHOLD
-        return HOP_REWARD
-    end
-
-    # Could not reach the car in time to hop
-    return -HOP_REWARD
-
-end
-
-# This has to be INDEPENDENT of whether car has reached end
-function isterminal(mdp::ControlledMultiRotorHopOnMDP, s::ControlledHopOnState)
-
-    if s.control_transfer == true
-        return true
-    end
-
-    return false
-end
-
-function terminalreward(mdp::ControlledMultiRotorHopOnMDP, s::ControlledHopOnState)
-
-    if !isterminal(mdp,s)
-        return 0.0
-    end
-
-    if s.control_transfer == true
-        return -CONTROL_TRANSFER_PENALTY
-    end
-
-    curr_pos = Point(s.rel_uavstate.x, s.rel_uavstate.y)
-
-    if point_norm(curr_pos) < HOP_DISTANCE_THRESHOLD
-        return HOP_REWARD
-    end
-
-    # Could not reach the car in time to hop
-    return -HOP_REWARD
-end
-
-
-function generate_sr(mdp::ControlledMultiRotorHopOnMDP, s::ControlledHopOnState, a::HopOnAction, rng::RNG=Base.GLOBAL_RNG) where {RNG <: AbstractRNG}
-
-    cost = TIME_COEFFICIENT*MDP_TIMESTEP
-
-    # Depending on action, do various things
-    if a.uavaction != nothing
-        new_uavstate = next_state(mdp.dynamics, s.rel_uavstate, a.uavaction, rng)
-
-        cost += dynamics_cost(mdp.dynamics, s.rel_uavstate, new_uavstate)
-
-        if s.control_transfer == true
-            throw(ErrorException("Can't have control true here"))
-        end
-
-        return ControlledHopOnState(new_uavstate, false), -cost
-    elseif a.control_transfer == true
-        # Transfer control to higher layer
-        return ControlledHopOnState(s.rel_uavstate, true), -cost
-    else
-        throw(ArgumentError("Invalid action specified!"))
-    end
 end
 
 
@@ -233,7 +141,8 @@ end
 # Monte Carlo, will also need to do sigma point sampling later
 # NOTE - This is for training, for actual will append horizon
 # to create multiple augmented states.
-function generate_sr(mdp::ControlledMultiRotorHopOnMDP, s::ControlledHopOnStateAugmented, a::HopOnAction, rng::RNG=Base.GLOBAL_RNG) where {RNG <: AbstractRNG}
+function generate_sr(mdp::ControlledMultiRotorHopOnMDP, s::ControlledHopOnStateAugmented, 
+                     a::HopOnAction, rng::RNG=Base.GLOBAL_RNG) where {RNG <: AbstractRNG}
 
     cost = TIME_COEFFICIENT*MDP_TIMESTEP
 
@@ -244,14 +153,28 @@ function generate_sr(mdp::ControlledMultiRotorHopOnMDP, s::ControlledHopOnStateA
         new_uavstate = next_state(mdp.dynamics, s.rel_uavstate, a.uavaction, rng)
         cost += dynamics_cost(mdp.dynamics, s.rel_uavstate, new_uavstate)
 
-        if s.control_transfer == true
-            throw(ErrorException("Can't have control true here"))
+        if s.horizon == 1
+            # Add terminal reward if appropriate
+            if mdp.terminal_costs_set
+                curr_pos = Point(new_uavstate.x, new_uavstate.y)
+                curr_speed = sqrt(new_uavstate.xdot^2 + new_uavstate.ydot^2)
+                if point_norm(curr_pos) > MDP_TIMESTEP*HOP_DISTANCE_THRESHOLD || curr_speed > XYDOT_HOP_THRESH
+                    cost += mdp.no_hop_penalty
+                end
+            end
         end
 
-        return ControlledHopOnStateAugmented(new_uavstate, false, s.horizon-1), -cost
+        return ControlledHopOnStateAugmented(new_uavstate, s.horizon-1), -cost
     elseif a.control_transfer == true
-        # Transfer control to higher layer
-        return ControlledHopOnStateAugmented(s.rel_uavstate, true, s.horizon-1), -cost
+        # TODO : No point setting x to Inf
+        # Lookup horizon-based cost and add here before returning terminal state
+        if s.horizon <= HORIZON_LIM # For the out-horizon case where horizon nominally set to 0
+            cost += mdp.horizon_abort_penalty[s.horizon]
+        else
+            cost = Inf
+        end
+
+        return ControlledHopOnStateAugmented(s.rel_uavstate, -1), -cost
     else
         throw(ArgumentError("Invalid action specified!"))
     end
@@ -266,12 +189,12 @@ function transition(mdp::ControlledMultiRotorHopOnMDP, s::ControlledHopOnStateAu
         nbr_states = Vector{ControlledHopOnStateAugmented}(n_nbrs)
 
         for i = 1:n_nbrs
-            nbr_states[i] = ControlledHopOnStateAugmented(sigma_uavstates[i], s.control_transfer, s.horizon-1)
+            nbr_states[i] = ControlledHopOnStateAugmented(sigma_uavstates[i], s.horizon-1)
         end
 
         return SparseCat(nbr_states, sigma_probs)
     elseif a.control_transfer == true
-        return SparseCat([ControlledHopOnStateAugmented(s.rel_uavstate, true, s.horizon-1)],[1.0])
+        return SparseCat([ControlledHopOnStateAugmented(s.rel_uavstate, -1)],[1.0])
     else
         throw(ArgumentError("Invalid action specified!"))
     end
@@ -283,6 +206,21 @@ function reward(mdp::ControlledMultiRotorHopOnMDP, s::ControlledHopOnStateAugmen
 
     if a.uavaction != nothing
         cost += dynamics_cost(mdp.dynamics, s.rel_uavstate, sp.rel_uavstate)
+        if sp.horizon == 0
+            if mdp.terminal_costs_set
+                curr_pos = Point(sp.rel_uavstate.x, sp.rel_uavstate.y)
+                curr_speed = sqrt(new_uavstate.xdot^2 + new_uavstate.ydot^2)
+                if point_norm(curr_pos) > MDP_TIMESTEP*HOP_DISTANCE_THRESHOLD || curr_speed > XYDOT_HOP_THRESH
+                    cost += mdp.no_hop_penalty
+                end
+            end
+        end
+    else
+        if s.horizon <= HORIZON_LIM
+            cost += mdp.horizon_abort_penalty[s.horizon]
+        else
+            cost = Inf
+        end
     end
 
     # For the other action, no additional cost accrued
@@ -333,15 +271,14 @@ function hopon_policy_action(policy::PartialControlHopOnOffPolicy, rel_uavstate:
             time_prob = time_to_finish_prob[hor+1]
 
             if time_prob > 0.0
-                aug_inhor_state = ControlledHopOnStateAugmented(rel_uavstate,
-                                                                false,hor)
+                aug_inhor_state = ControlledHopOnStateAugmented(rel_uavstate,hor)
                 action_values[iaction] += time_prob*action_value(policy.in_horizon_policy, aug_inhor_state, a)
             end
         end
 
         time_prob = time_to_finish_prob[end]
         if time_prob > 0.0
-            aug_outhor_state = ControlledHopOnStateAugmented(rel_uavstate,false,0.)
+            aug_outhor_state = ControlledHopOnStateAugmented(rel_uavstate,HORIZON_LIM+1)
             action_values[iaction] += time_prob*action_value(policy.out_horizon_policy,aug_outhor_state,a)
         end
     end
@@ -376,7 +313,7 @@ function hopoff_policy_action(policy::PartialControlHopOnOffPolicy, curr_time_to
 
         time_prob = time_to_finish_prob[end]
         if time_prob > 0.0
-            aug_outhor_state = HopOffStateAugmented(true,0.)
+            aug_outhor_state = HopOffStateAugmented(true,HORIZON_LIM+1)
             action_values[iaction] += time_prob*action_value(policy.out_horizon_policy,aug_outhor_state,a)
         end
     end
@@ -439,21 +376,14 @@ function unconstrained_flight_action(rel_uavstate::MultiRotorUAVState)
 end
 
 
-
-function generate_start_state(mdp::ControlledMultiRotorHopOnMDP, rng::RNG=Base.GLOBAL_RNG) where {RNG <: AbstractRNG}
-    uav_startstate = generate_start_state(mdp.dynamics)
-    return ControlledHopOnState(uav_startstate,false)
-end
-
 # State conversion functions
 function POMDPs.convert_s(::Type{V} where V <: AbstractVector{Float64}, s::ControlledHopOnStateAugmented, mdp::ControlledMultiRotorHopOnMDP)
-  v = SVector{6,Float64}(s.rel_uavstate.x, s.rel_uavstate.y, s.rel_uavstate.xdot, s.rel_uavstate.ydot,
-                         convert(Float64,s.control_transfer), convert(Float64,s.horizon))
+  v = SVector{5,Float64}(s.rel_uavstate.x, s.rel_uavstate.y, s.rel_uavstate.xdot, s.rel_uavstate.ydot,convert(Float64,s.horizon))
   return v
 end
 
 function POMDPs.convert_s(::Type{ControlledHopOnStateAugmented}, v::AbstractVector{Float64}, mdp::ControlledMultiRotorHopOnMDP)
-  s = ControlledHopOnStateAugmented(MultiRotorUAVState(v[1],v[2],v[3],v[4]),convert(Bool,v[5]), convert(Int64,v[6]))
+  s = ControlledHopOnStateAugmented(MultiRotorUAVState(v[1],v[2],v[3],v[4]),convert(Int64,v[5]))
   return s
 end
 
@@ -492,6 +422,8 @@ function UnconstrainedFlightMDP(dynamics::MultiRotorUAVDynamicsModel, discount::
         end
     end
 
+    println(multi_rotor_flight_actions)
+
     return UnconstrainedFlightMDP{MultiRotorUAVState, FlightAction{MultiRotorUAVAction}, typeof(dynamics)}(dynamics, discount, multi_rotor_flight_actions)
 end
 
@@ -502,7 +434,8 @@ end
 # TODO : Assume that all UAVStates have x and y 
 function isterminal(mdp::UnconstrainedFlightMDP, s::US) where {US <: UAVState}
     curr_pos = Point(s.x, s.y)
-    return point_norm(curr_pos) < MDP_TIMESTEP*HOP_DISTANCE_THRESHOLD
+    curr_speed = sqrt(s.xdot^2 + s.ydot^2)
+    return point_norm(curr_pos) < MDP_TIMESTEP*HOP_DISTANCE_THRESHOLD && curr_speed < XYDOT_HOP_THRESH
 end
 
 function generate_sr(mdp::UnconstrainedFlightMDP, s::US, a::FlightAction, rng::RNG=Base.GLOBAL_RNG) where {US <: UAVState, RNG <: AbstractRNG}
@@ -512,6 +445,10 @@ function generate_sr(mdp::UnconstrainedFlightMDP, s::US, a::FlightAction, rng::R
     new_uavstate = next_state(mdp.dynamics, s, a.uav_action, rng)
     cost += dynamics_cost(mdp.dynamics, s, new_uavstate)
 
+    if isterminal(mdp, new_uavstate)
+        cost -= FLIGHT_REACH_REWARD
+    end
+
     return new_uavstate, -cost
 end
 
@@ -519,26 +456,18 @@ function reward(mdp::UnconstrainedFlightMDP, s::US, a::FlightAction, sp::US) whe
 
     cost = TIME_COEFFICIENT*MDP_TIMESTEP
     cost += dynamics_cost(mdp.dynamics, s, sp.rel_uavstate)
-
     return -cost 
+
 end
 
-function terminalreward(mdp::UnconstrainedFlightMDP, s::US) where {US <: UAVState}
-
-    if !isterminal(mdp,s)
-        return 0.0
-    end
-
-    return HOP_REWARD
-end
 
 # State conversion functions
-function POMDPs.convert_s(::Type{V} where V <: AbstractVector{Float64}, s::MultiRotorUAVState, mdp::UnconstrainedFlightMDP)
+function POMDPs.convert_s(::Type{V} where V <: AbstractVector{Float64}, s::MultiRotorUAVState, mdp::Any)
   v = SVector{4,Float64}(s.x, s.y, s.xdot, s.ydot)
   return v
 end
 
-function POMDPs.convert_s(::Type{MultiRotorUAVState}, v::AbstractVector{Float64}, mdp::UnconstrainedFlightMDP)
+function POMDPs.convert_s(::Type{MultiRotorUAVState}, v::AbstractVector{Float64}, mdp::Any)
   s = MultiRotorUAVState(v[1],v[2],v[3],v[4])
   return s
 end

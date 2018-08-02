@@ -1,10 +1,12 @@
 function get_flight_mpc_action_multirotor(curr_state::MultiRotorUAVState, next_vertex::CarDroneVertex, curr_fin_horizon::Int64)
 
     # MPC timesteps depends on finish horizon
-    N = curr_fin_horizon > HORIZON_LIM ? HORIZON_LIM : curr_fin_horizon
+    N = curr_fin_horizon > 20 ? 20 : curr_fin_horizon
+
+    SPEED_COEFF = 100
 
     # Setup solver
-    solver = IpoptSolver(max_iter=100,print_level=0)
+    solver = IpoptSolver(linear_solver="mumps",max_iter=100,print_level=0)
 
     # Obtain start and goal in terms of curr_state and next_vertex
     curr_vect = SVector{4, Float64}(curr_state.x, curr_state.y, curr_state.xdot, curr_state.ydot)
@@ -24,13 +26,17 @@ function get_flight_mpc_action_multirotor(curr_state::MultiRotorUAVState, next_v
     # Set start state
     @constraint(m, uav_state[1:4] .== curr_vect)
 
+    # Set end velocity
+    #@NLconstraint(m, sqrt(uav_state[4*N+3]^2 + uav_state[4*N+4]^2) <= XYDOT_HOP_THRESH)
+
     # Define control actions
     @variable(m, -ACCELERATION_LIM <= acc[1:2*N] <= ACCELERATION_LIM)
 
     # Setup objective function
     @NLobjective(m, Min, sum(FLIGHT_COEFFICIENT*sqrt( (curr_goal_pos[1] - uav_state[4*(i-1)+1])^2 + 
-        (curr_goal_pos[2] - uav_state[4*(i-1)+2])^2) + 
-        HOVER_COEFFICIENT*( sqrt(uav_state[4*(i-1) + 3]^2 + uav_state[4*(i-1) + 4]^2)  < MDP_TIMESTEP*EPSILON)
+        (curr_goal_pos[2] - uav_state[4*(i-1)+2])^2) 
+    #+ SPEED_COEFF*abs(XYDOT_HOP_THRESH - sqrt(uav_state[4*(i-1) + 3]^2 + uav_state[4*(i-1) + 4]^2))
+        + HOVER_COEFFICIENT*( sqrt(uav_state[4*(i-1) + 3]^2 + uav_state[4*(i-1) + 4]^2)  < MDP_TIMESTEP*EPSILON)
          for i = 1:N+1))
 
     # Control Constraint

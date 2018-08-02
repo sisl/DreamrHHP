@@ -53,14 +53,18 @@ function coast_edge_cost(u::CarDroneVertex, v::CarDroneVertex)
 end
 
 # Nominal flight edge cost when pc policy not used
-# TODO : Need a model of flight cost for such flight edges
 function flight_edge_cost_nominal(u::CarDroneVertex, v::CarDroneVertex, d::Drone)
     dist::Float64 = point_dist(u.pos, v.pos)
     cost::Float64 = FLIGHT_COEFFICIENT*dist
     if v.time_stamp < Inf
         cost += TIME_COEFFICIENT*(v.time_stamp - u.time_stamp)
     else
-        cost += TIME_COEFFICIENT*(dist/d.max_speed)
+        if u.time_stamp == 0.0
+            cost = Inf
+        else
+            # TODO - Is this right????
+            cost += TIME_COEFFICIENT*(dist*2.0/d.max_speed)
+        end
     end
     # println("Nominal edge - ",u.idx," to ",v.idx," of cost ",cost)
     return cost
@@ -69,31 +73,34 @@ end
 
 # ASSUME this is inside distance limits
 function flight_edge_cost_valuefn(udm::UDM, hopon_policy::PartialControlHopOnOffPolicy,
-         u::CarDroneVertex, v::CarDroneVertex, d::Drone) where {UDM <: UAVDynamicsModel}
-    horizon = convert(Int,round((v.time_stamp-u.time_stamp)/MDP_TIMESTEP))
+                                  flight_policy::LocalApproximationValueIterationPolicy,
+                                  u::CarDroneVertex, v::CarDroneVertex, d::Drone) where {UDM <: UAVDynamicsModel}
 
     rel_pos = Point(u.pos.x - v.pos.x, u.pos.y - v.pos.y)
     rel_state = get_state_at_rest(udm, rel_pos)
 
-    if horizon > HORIZON_LIM+4 && (abs(rel_state.x) > 1.05*XY_LIM || abs(rel_state.y) > 1.05*XY_LIM)
-        return flight_edge_cost_nominal(u,v,d)
-    end
+    cost = 0.0
 
-    # Initialize with additional distance cost, if any
-    cost = FLIGHT_COEFFICIENT*max(0,point_norm(rel_pos) - XY_LIM*1.05*sqrt(2))
-
-    if horizon < HORIZON_LIM
-        hopon_state = ControlledHopOnStateAugmented(rel_state,false,horizon)
-        cost += -value(hopon_policy.in_horizon_policy,hopon_state)
-        cost = cost + HOP_REWARD
+    if v.time_stamp == Inf
+        cost += -value(flight_policy, rel_state) + FLIGHT_REACH_REWARD
     else
-        # Use outhorizon cost but also additional cost for time and/or distance
-        addtn_time_cost = TIME_COEFFICIENT*(horizon - HORIZON_LIM)
-        hopon_outhor_state = ControlledHopOnStateAugmented(rel_state,false,0.)
-        cost += -value(hopon_policy.out_horizon_policy, hopon_outhor_state) + addtn_time_cost
+        horizon = convert(Int,round((v.time_stamp-u.time_stamp)/MDP_TIMESTEP))
+        if horizon <= HORIZON_LIM
+            hopon_state = ControlledHopOnStateAugmented(rel_state,horizon)
+            cost += -value(hopon_policy.in_horizon_policy,hopon_state)
+            #end
+        else
+            # Use outhorizon cost but also additional cost for time and/or distance
+            addtn_time_cost = TIME_COEFFICIENT*MDP_TIMESTEP*(horizon - HORIZON_LIM)
+            hopon_outhor_state = ControlledHopOnStateAugmented(rel_state,HORIZON_LIM)
+            cost += -value(hopon_policy.in_horizon_policy, hopon_outhor_state) + addtn_time_cost
+        end
     end
 
-    # println("Valuefn edge - ",u.idx," to ",v.idx," of cost ",cost)
+    if u.is_car && v.is_car && u.car_id != v.car_id
+        #cost = 0.5*cost
+        #println("Car-Car VFn edge - ",u.idx," to ",v.idx," of cost ",cost)
+    end
 
     return cost
 end

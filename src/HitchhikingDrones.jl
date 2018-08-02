@@ -67,7 +67,6 @@ export
 # Partial Control MDP stuff
 export
     ControlledHopOnStateAugmented,
-    ControlledHopOnState,
     HopOffStateAugmented,
     HopOnAction,
     HopOffAction,
@@ -97,19 +96,24 @@ export
     XY_LIM,
     XYDOT_LIM,
     ACCELERATION_LIM,
+    ACCELERATION_NUMVALS,
     HORIZON_LIM,
     EPSILON,
     XY_AXISVALS,
     XYDOT_AXISVALS,
+    XYDOT_HOP_THRESH,
     MDP_TIMESTEP,
     ACC_NOISE_STD,
     CONTROL_TRANSFER_PENALTY,
     HOP_DISTANCE_THRESHOLD,
     FLIGHT_COEFFICIENT,
+    TIME_COEFFICIENT,
     HOVER_COEFFICIENT,
-    HOP_REWARD,
+    NO_HOP_PENALTY,
     MC_GENERATIVE_NUMSAMPLES,
-    MC_TIME_NUMSAMPLES
+    MC_TIME_NUMSAMPLES,
+    MAX_DRONE_SPEED,
+    MAX_CAR_SPEED
 
 # Types information
 export
@@ -139,7 +143,8 @@ export
 export
     plot_car_route,
     plot_drone_and_active_cars_epoch!,
-    log2space_symmetric
+    log2space_symmetric,
+    polyspace_symmetric
 
 
 

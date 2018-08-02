@@ -5,6 +5,8 @@ deps/deps.jl
 *.json
 *.png
 data/plots/
+*.sh
+sandbox_*
 
 # MacOS stuff
 *.DS_Store

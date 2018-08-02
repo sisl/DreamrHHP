@@ -68,7 +68,7 @@ for epoch = 1:num_epochs
         if need_to_replan == true
             plan_from_next_start(graph_planner, flight_edge_wt_fn, is_valid_flight_edge)
             need_to_replan = false
-            readline()
+            # readline()
         end
 
         # If there is no next macro action, just continue (FOR NOW)
@@ -102,8 +102,10 @@ for epoch = 1:num_epochs
             if curr_fin_time < MDP_TIMESTEP
                 @assert next_vertex.is_car == true
 
+                curr_speed = sqrt(curr_state.uav_state.xdot^2 + curr_state.uav_state.ydot^2)
+
                 # Go for the hop if it can
-                if curr_dist < MDP_TIMESTEP*HOP_DISTANCE_THRESHOLD
+                if curr_dist < MDP_TIMESTEP*HOP_DISTANCE_THRESHOLD && curr_speed < XYDOT_HOP_THRESH
                     sdmc_action = (HOPON, next_vertex.car_id)
                     need_to_replan = true
                 else
@@ -117,10 +119,12 @@ for epoch = 1:num_epochs
 
                 # TODO : Checking criteria for abort (OR just replan each time?)
                 sdmc_action = get_flight_mpc_action_multirotor(curr_state.uav_state, next_vertex, curr_fin_horizon)
+                # sdmc_action = get_flight_mpc_action_multirotor(curr_state.uav_state, next_vertex, 10)
             end
         else
             # Unconstrained flight action
             sdmc_action = get_flight_mpc_action_multirotor(curr_state.uav_state, next_vertex, HORIZON_LIM)
+            # sdmc_action = get_flight_mpc_action_multirotor(curr_state.uav_state, next_vertex, 10)
         end
 
         # TODO : Alternative is to put replan=true

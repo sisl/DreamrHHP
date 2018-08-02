@@ -7,12 +7,13 @@ flight_mdp = UnconstrainedFlightMDP(uav_dynamics, 0.9)
 
 solver = IpoptSolver(linear_solver="mumps",max_iter=100)
 
-N = HORIZON_LIM
+N = 20
+SPEED_COEFF = 100
 
 # Define start and goal
 start_vect = SVector{4,Float64}(0.0,0.0,0.0,0.0)
 curr_vect = SVector{4,Float64}(0.0,0.0,0.0,0.0)
-goal_pos = [0.8,0.64]
+goal_pos = [0.53,0.33]
 
 while true
     m = Model(solver = solver)
@@ -27,15 +28,16 @@ while true
     end
     # Constrain start state
     @constraint(m, uav_state[1:4] .== curr_vect)
-
+    #@NLconstraint(m, sqrt(uav_state[4*N+3]^2 + uav_state[4*N+4]^2) <= XYDOT_HOP_THRESH)
 
     # Define control actions
     @variable(m, -ACCELERATION_LIM <= acc[1:2*N] <= ACCELERATION_LIM)
 
     # Setup objective function
     @NLobjective(m, Min, sum(FLIGHT_COEFFICIENT*sqrt( (goal_pos[1] - uav_state[4*(i-1)+1])^2 + 
-        (goal_pos[2] - uav_state[4*(i-1)+2])^2) + 
-        HOVER_COEFFICIENT*( sqrt(uav_state[4*(i-1) + 3]^2 + uav_state[4*(i-1) + 4]^2)  < MDP_TIMESTEP*EPSILON)
+        (goal_pos[2] - uav_state[4*(i-1)+2])^2)
+        #+ SPEED_COEFF*abs(XYDOT_HOP_THRESH - sqrt(uav_state[4*(i-1) + 3]^2 + uav_state[4*(i-1) + 4]^2))
+        + HOVER_COEFFICIENT*( sqrt(uav_state[4*(i-1) + 3]^2 + uav_state[4*(i-1) + 4]^2)  < MDP_TIMESTEP*EPSILON)
          for i = 1:N+1))
 
     # Control Constraint
@@ -66,6 +68,8 @@ while true
     curr_state = convert_s(MultiRotorUAVState,curr_vect,flight_mdp)
     curr_action = MultiRotorUAVAction(xddotvals[1], yddotvals[1])
 
+    println(curr_action)
+
     next_s = next_state(uav_dynamics, curr_state, curr_action)
 
     println(xvals)
@@ -77,7 +81,7 @@ while true
 
     println(curr_vect)
 
-    if norm(curr_vect[1:2] - goal_pos) < 0.01
+    if norm(curr_vect[1:2] - goal_pos) < 0.01 && norm(curr_vect[3:4]) < XYDOT_HOP_THRESH
         break
     end
 
