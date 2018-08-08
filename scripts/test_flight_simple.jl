@@ -43,7 +43,7 @@ while true
         break
     end
 
-    #readline()
+    readline()
 end
 
 println("TOTAL COST - ",cost)

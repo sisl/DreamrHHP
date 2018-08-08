@@ -11,11 +11,12 @@ mutable struct GraphSolution
     max_car_speed::Float64
     goal_idx::Int
     next_start_idx::Int
+    has_next_start::Bool
     n_vertices::Int
     curr_time::Float64
     car_drone_graph::SimpleVListGraph{CarDroneVertex}
     route_vert_id_to_idx::Dict{String,Int}
-    drone_vertex_idxs::Set{Int}
+    drone_vertex_idxs::Vector{Int}
     flight_edge_wts::Dict{Tuple{Int,Int},Float64}
     curr_soln_idx_path::Vector{Int}
     curr_best_soln_value::Float64
@@ -29,8 +30,8 @@ function GraphSolution(_drone::Drone, _max_car_speed::Float64=MAX_CAR_SPEED)
     car_drone_graph = SimpleVListGraph(Vector{CarDroneVertex}())
 
     return GraphSolution(Dict{String,Car}(), _drone, 
-        _max_car_speed, 0, 0, 0, 0.0, car_drone_graph, 
-        Dict{String,Int}(), Set{Int}(), Dict{Tuple{Int,Int},Float64}(),
+        _max_car_speed, 0, 0, false, 0, 0.0, car_drone_graph, 
+        Dict{String,Int}(), Vector{Int}(), Dict{Tuple{Int,Int},Float64}(),
         Vector{Int}(), Inf, false, Vector{Tuple{Tuple{CarDroneVertex,CarDroneVertex}, Float64}}(),
         Dict{Int,Set{String}}())
 end
@@ -46,6 +47,7 @@ function setup_graph(gs::GraphSolution, start_pos::Point, goal_pos::Point, epoch
     gs.n_vertices += 1
     add_vertex!(gs.car_drone_graph, CarDroneVertex(gs.n_vertices, start_pos, start_time,false))
     gs.next_start_idx = gs.n_vertices
+    gs.has_next_start = true
     push!(gs.drone_vertex_idxs, gs.n_vertices)
 
     # Initialize goal vertex
@@ -77,7 +79,7 @@ function setup_graph(gs::GraphSolution, start_pos::Point, goal_pos::Point, epoch
 
             # Now add appropriate car object
             gs.car_map[car_id] = Car([first_route_idx, last_route_idx])
-            info("Car ",car_id," has been added!")
+            # info("Car ",car_id," has been added!")
         else
             # Add inactive car - this should not happen at first epoch though
             warn("Inactive Car ",car_id," in first epoch!")
@@ -118,7 +120,7 @@ function update_cars_with_epoch(gs::GraphSolution, epoch::Dict)
                 # Check if the next waypoint of route has been updated
                 first_route_idx = gs.route_vert_id_to_idx[string(car_id,"-",sorted_route[1][1])]
                 if this_car.route_idx_range[1] != first_route_idx
-                    info("Car ",car_id," has updated its next route point to ",first_route_idx)
+                    # info("Car ",car_id," has updated its next route point to ",first_route_idx)
                     this_car.route_idx_range[1] = first_route_idx
                 end
             else
@@ -140,7 +142,7 @@ function update_cars_with_epoch(gs::GraphSolution, epoch::Dict)
                 last_route_idx = gs.n_vertices
 
                 gs.car_map[car_id] = Car([first_route_idx, last_route_idx])
-                info("Car ",car_id," has been added!")
+                # info("Car ",car_id," has been added!")
             end
         end
     end
@@ -154,11 +156,23 @@ function add_drone_vertex(gs::GraphSolution, pos::Point, time_stamp::Float64)
     return gs.n_vertices
 end
 
+function remove_last_drone_vertex(gs::GraphSolution)
+    gs.n_vertices -= 1
+    remove_last_vertex!(gs.car_drone_graph)
+    @assert pop!(gs.drone_vertex_idxs) != gs.goal_idx
+end
+
 # Add a new vertex and make that the new start index
 function add_new_start(gs::GraphSolution, pos::Point, time_stamp::Float64)
     gs.next_start_idx = add_drone_vertex(gs, pos, time_stamp)
+    gs.has_next_start = true
 end
 
+function revert_new_start(gs::GraphSolution, idx::Int)
+    remove_last_drone_vertex(gs)
+    gs.next_start_idx = idx
+    gs.has_next_start = true
+end
 
 function astar_heuristic(gs::GraphSolution, v::CarDroneVertex)
     return TIME_COEFFICIENT*point_dist(v.pos, gs.car_drone_graph.vertices[gs.goal_idx].pos)/gs.max_car_speed
@@ -219,6 +233,7 @@ end
 
 function update_next_start(gs::GraphSolution, next_start_idx::Int)
     gs.next_start_idx = next_start_idx
+    gs.has_next_start = true
 end
 
 
@@ -232,7 +247,7 @@ function plan_from_next_start(gs::GraphSolution, flight_edge_wt_fn::Function, va
     # heuristic(v) = 0.0
     edge_wt_fn(u,v) = edge_weight_function_lookup(flight_edge_wt_fn, gs, u, v)
 
-    #println("Planning from - ",gs.car_drone_graph.vertices[gs.next_start_idx])
+    # println("Planning from - ",gs.car_drone_graph.vertices[gs.next_start_idx])
 
     # Reset the considered cars dict for each vertex
     # Add the next start with empty set (so its successor can copy from it)
@@ -381,7 +396,7 @@ function Graphs.include_vertex!(vis::GoalVisitorImplicit, u::CarDroneVertex, v::
         # end
         # NOTE : If this is the first coast vertex, don't do any more
         # Must do at least 1 coast edge
-        if u.is_car == false || u.car_id != v.car_id || u.idx == v.idx
+        if u.is_car == false || u.car_id != v.car_id || (u.idx == v.idx && v.idx != vis.gs.car_map[v.car_id].route_idx_range[2])
             return true
         end
     end
@@ -405,13 +420,10 @@ function Graphs.include_vertex!(vis::GoalVisitorImplicit, u::CarDroneVertex, v::
                 push!(nbrs,next_idx)
             end
         end
-        # println("Car-Car Neighbors:")
-        # for n in nbrs
-        #         print(n,", ")
-        # end
     end
 
     # Iterate over remaining drone vertices and add flight edges to them
+    # TODO - Fix this later when you may have interm drone
     for dvtx_idx in vis.gs.drone_vertex_idxs
         if dvtx_idx != v.idx && vis.valid_edge_fn(v,vis.gs.car_drone_graph.vertices[dvtx_idx],vis.gs.drone)
             push!(nbrs, dvtx_idx)

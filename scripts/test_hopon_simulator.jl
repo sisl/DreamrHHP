@@ -11,17 +11,15 @@ using Distributions
 using HitchhikingDrones
 
 # LOAD POLICY HERE - SWAP OUT AS NEEDED
-policy_names = [ "policies/hopon_denseparamset1-exp-abort_thresh-0.55.jld",
-                "policies/hopon_denseparamset1-exp-abort_thresh-0.75.jld",
-                "policies/hopon_denseparamset1-exp-abort_thresh-0.95.jld"]
+policy_names = [ "policies/hopon_denseparamset3-poly-abort_thresh-0.95.jld"]
 
-outfilename = "policies_compared_2.txt"
+outfilename = "test1-set3.txt"
 
 outfile = open(outfilename,"w")
 
 
-rng = MersenneTwister(1)
-NUM_EPISODES = 20
+rng = MersenneTwister(15)
+NUM_EPISODES = 100
 
 # Now create MDP and simulator
 uav_dynamics = MultiRotorUAVDynamicsModel(MDP_TIMESTEP, ACC_NOISE_STD)
@@ -136,7 +134,7 @@ for pn in policy_names
             if is_done
                 curr_rel_pos = Point(curr_uavstate.x, curr_uavstate.y)
                 curr_speed = sqrt(curr_uavstate.xdot^2 + curr_uavstate.ydot^2)
-                if point_norm(curr_rel_pos) < HOP_DISTANCE_THRESHOLD && curr_speed < XYDOT_HOP_THRESH
+                if point_norm(curr_rel_pos) < MDP_TIMESTEP*HOP_DISTANCE_THRESHOLD && curr_speed < XYDOT_HOP_THRESH
                     is_success = 1
                 end
                 break

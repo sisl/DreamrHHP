@@ -14,6 +14,11 @@ function Graphs.num_vertices(g::SimpleVListGraph{V}) where V
     return length(g.vertices)
 end
 
+# Non Graphs function
+function remove_last_vertex!(g::SimpleVListGraph{V}) where V
+    pop!(g.vertices)
+end
+
 
 # CarDroneVertex for drone flight waypoints
 # Will typically just be the start and goal

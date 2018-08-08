@@ -258,7 +258,7 @@ function hopon_policy_action(policy::PartialControlHopOnOffPolicy, rel_uavstate:
                                 curr_time_to_fin::Float64, rng::RNG=Base.GLOBAL_RNG) where {US <: UAVState,RNG <: AbstractRNG}
 
     # Set up the time to finish samples
-    time_to_finish_prob = generate_time_to_finish_dist(curr_time_to_fin)
+    time_to_finish_prob = generate_time_to_finish_dist(curr_time_to_fin,rng)
     mdp = policy.in_horizon_policy.mdp
 
     action_values = zeros(n_actions(mdp))

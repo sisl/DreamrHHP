@@ -39,7 +39,7 @@ function step_SDMC(sdmc::SDMCSimulator, action::SDMCAction)
     epoch_info_dict = sdmc.epochs_dict[string(sdmc.epoch_counter)]
     epoch_car_info = epoch_info_dict["car-info"]
 
-    reward::Float64 = 0.0
+    reward::Float64 = -TIME_COEFFICIENT*MDP_TIMESTEP
 
     # If UAV action, simulate and add reward and return car dict as additional info (OpenAIGYM style)
     if typeof(action) <: UAVAction

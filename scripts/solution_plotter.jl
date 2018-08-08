@@ -24,7 +24,6 @@ for epoch = 1:num_epochs
     img_fn = string(outfile_pref,"-",epoch,".png")
     epoch_dict = ep_dict["epochs"][string(epoch)]
     curr_pos = Point(epoch_dict["drone-info"]["pos"][1], epoch_dict["drone-info"]["pos"][2])
-    # println(curr_pos)
     p = plot_drone_and_active_cars_epoch!(epoch_dict, curr_pos, goal_pos, color_map)
-    draw(PNG(img_fn, 10inch, 10inch), p)
+    draw(PNG(img_fn, 14inch, 14inch), p)
 end

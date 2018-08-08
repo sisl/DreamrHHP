@@ -104,7 +104,7 @@ for iter = 1:num_files
             if need_to_replan == true
                 plan_from_next_start(graph_planner, flight_edge_wt_fn, is_valid_flight_edge)
                 need_to_replan = false
-                #readline()
+                # readline()
             end
 
             # If there is no next macro action, just continue (FOR NOW)
@@ -165,7 +165,7 @@ for iter = 1:num_files
                         need_to_replan = true
                     end
                 else
-                    best_action = hopon_policy_action(hopon_policy, rel_uavstate, curr_fin_time)
+                    best_action = hopon_policy_action(hopon_policy, rel_uavstate, curr_fin_time, rng)
 
                     if best_action.control_transfer == true
                         # Lower level action aborts
@@ -191,7 +191,7 @@ for iter = 1:num_files
                 sdmc_action = (HOPOFF,curr_state.car_id)
                 need_to_replan = true
             else 
-                best_action = hopoff_policy_action(hopoff_policy, curr_fin_time)
+                best_action = hopoff_policy_action(hopoff_policy, curr_fin_time, rng)
                 sdmc_action = (best_action.hopaction, curr_state.car_id)
                 if best_action.hopaction == HOPOFF 
                     need_to_replan=true
@@ -234,7 +234,7 @@ for iter = 1:num_files
         # If there is a need to replan, check if it is close enough in space (and time) to macro action end/start vertex
         if need_to_replan == true
             
-            if sdmc_action[1] == HOPON
+            if typeof(sdmc_action) <: Tuple && sdmc_action[1] == HOPON
                 attempted_hops += 1
             end
 
@@ -285,7 +285,7 @@ for iter = 1:num_files
 end # End for iter 
 
 # Write stats json to file
-stats_filename = string(ep_file_prefix,"-stats.json")
+stats_filename = string(ep_file_prefix,"-sdmc-solver-stats.json")
 open(stats_filename,"w") do f
     JSON.print(f,result_stats_dict,2)
 end

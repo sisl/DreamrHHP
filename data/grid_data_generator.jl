@@ -25,6 +25,7 @@ const ROUTE_MIN_LENGTH = 0.2
 const ROUTE_MAX_LENGTH = 1.0
 const STRAIGHT_ROUTE_PROB = 0.5 # Probability that car route will be a straight line, else L shaped
 const MODIFY_WAYPT_PROB = 0.75
+const MAX_CAR_SPEED = 0.007
 
 
 
@@ -282,7 +283,7 @@ end
 
 
 # Script level code
-#Arguments are <min-cars> <max-cars> <file-name> <figure-file-name> <num-files>
+#Arguments are <min-cars> <max-cars> <file-name> <num-files>
 min_cars = parse(Int,ARGS[1])
 max_cars = parse(Int, ARGS[2])
 filename_pref = ARGS[3]

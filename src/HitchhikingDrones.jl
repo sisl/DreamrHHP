@@ -46,6 +46,7 @@ export
 
 # Graph Planner components
 export
+    remove_last_vertex,
     astar_shortest_path,
     astar_light_shortest_path_implicit,
     SimpleVListGraph,
@@ -60,6 +61,7 @@ export
     add_drone_vertex,
     add_new_start,
     update_next_start,
+    revert_new_start,
     plan_from_next_start,
     get_future_macro_actions_values,
     get_flight_mpc_action_multirotor
@@ -113,7 +115,8 @@ export
     MC_GENERATIVE_NUMSAMPLES,
     MC_TIME_NUMSAMPLES,
     MAX_DRONE_SPEED,
-    MAX_CAR_SPEED
+    MAX_CAR_SPEED,
+    MAX_REPLAN_TIMESTEP
 
 # Types information
 export
