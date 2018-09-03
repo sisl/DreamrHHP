@@ -147,7 +147,8 @@ export
     plot_car_route,
     plot_drone_and_active_cars_epoch!,
     log2space_symmetric,
-    polyspace_symmetric
+    polyspace_symmetric,
+    st_line_reward_time
 
 
 

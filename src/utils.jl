@@ -47,3 +47,15 @@ function polyspace_symmetric(symm_val::Float64, n::Int64, exp_val::Int64=3)
 
     return vals
 end
+
+function st_line_reward_time(dist::Float64)
+
+    # For speedup and slow down - 2 * 1/2 * at^2
+    acc_dist = ACCELERATION_LIM*(XYDOT_LIM/ACCELERATION_LIM)^2
+
+    timeval = 2*(XYDOT_LIM/ACCELERATION_LIM) + (dist-acc_dist)/XYDOT_LIM
+
+    reward = FLIGHT_COEFFICIENT*dist + TIME_COEFFICIENT*timeval
+    
+    return reward,timeval
+end

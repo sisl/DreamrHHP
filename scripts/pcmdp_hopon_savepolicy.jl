@@ -12,14 +12,15 @@ using HitchhikingDrones
 policy_name = ARGS[1]
 poly_or_exp = ARGS[2]
 abort_risk_threshold = parse(Float64,ARGS[3])
+energy_time_alpha = parse(Float64,ARGS[4])
 
 
 # For consistency
 rng = MersenneTwister(5)
 
 # Create MDP - Need Dynamics Model first
-uav_dynamics = MultiRotorUAVDynamicsModel(MDP_TIMESTEP, ACC_NOISE_STD)
-pc_hopon_mdp = ControlledMultiRotorHopOnMDP(uav_dynamics)
+uav_dynamics = MultiRotorUAVDynamicsModel(MDP_TIMESTEP, ACC_NOISE_STD, HOVER_COEFFICIENT, FLIGHT_COEFFICIENT)
+pc_hopon_mdp = ControlledMultiRotorHopOnMDP(uav_dynamics,energy_time_alpha)
 
 
 if poly_or_exp == "poly"
@@ -56,9 +57,9 @@ for action in dynamics_actions
 
         for _ = 1:MC_GENERATIVE_NUMSAMPLES
             sp = next_state(uav_dynamics, state, action, rng)
-            this_reward += -dynamics_cost(uav_dynamics, state, sp)
+            this_reward += -(1.0 - energy_time_alpha)*dynamics_cost(uav_dynamics, state, sp)
         end
-        this_reward = this_reward / MC_GENERATIVE_NUMSAMPLES - TIME_COEFFICIENT*MDP_TIMESTEP
+        this_reward = this_reward / MC_GENERATIVE_NUMSAMPLES - energy_time_alpha*TIME_COEFFICIENT*MDP_TIMESTEP
 
         if this_reward < single_step_worst_reward
             single_step_worst_reward = this_reward

@@ -21,7 +21,7 @@ function plot_drone_and_active_cars_epoch!(epoch_dict::Dict, drone_pos::Point, g
     # Plot the start and goal
     p = Gadfly.plot(x=[drone_pos.x, goal_pos.x], y=[drone_pos.y, goal_pos.y], 
         shape=[Shape.star1],Geom.point, Theme(background_color=parse(Colorant,"white"),default_color=RGBA(0.,0.,0.,0.35),point_size=12pt),
-        xmin=[-1.],xmax=[1.],ymin=[-1.],ymax=[1.])
+        xmin=[-1.],xmax=[1.],ymin=[-1.],ymax=[1.],Guide.xticks(ticks=nothing),Guide.xlabel(nothing),Guide.yticks(ticks=nothing),Guide.ylabel(nothing))
       
     for (car_id,car_ep_dict) in car_info_dict
         # if rand() < 0.95

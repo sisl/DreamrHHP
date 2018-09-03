@@ -20,7 +20,7 @@ Assume all are SI units?
 
 
 # UNIT GRID
-const EPSILON = 0.0000001
+const EPSILON = 0.00001
 const ACCELERATION_LIM = 0.0002
 const ACCELERATION_NUMVALS = 7
 const HOP_DISTANCE_THRESHOLD = 0.001
@@ -42,16 +42,16 @@ const SIGMA_PT_KAPPA = 1.0
 const MDP_TIMESTEP = 5.0
 const WAYPT_TIME_CHANGE_THRESHOLD = MDP_TIMESTEP/2.0
 const MAX_REPLAN_TIMESTEP = 20.0
+const VALID_FLIGHT_EDGE_DIST_RATIO = 1.1 # The minimum ratio between dist of a flight edge and (max_speed*time_diff)
 
 
 # Cost parameters
 const FLIGHT_COEFFICIENT = 5000.0
+const HOVER_COEFFICIENT = 50.0
 const TIME_COEFFICIENT = 1.0
-const HOVER_COEFFICIENT = 1.0
 const NO_HOPOFF_PENALTY = 1000
 const FLIGHT_REACH_REWARD = 10000
-const INVALID_ACTION_PENALTY = 10.0 # For the real simulator
-const VALID_FLIGHT_EDGE_DIST_RATIO = 1.2 # The minimum ratio between dist of a flight edge and (max_speed*time_diff)
+
 
 
 # Additional simulator parameters - UNKNOWN to agent

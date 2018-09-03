@@ -96,9 +96,10 @@ mutable struct ControlledMultiRotorHopOnMDP <: POMDPs.MDP{ControlledHopOnStateAu
     horizon_abort_penalty::Vector{Float64}
     terminal_costs_set::Bool
     no_hop_penalty::Float64
+    energy_time_alpha::Float64
 end
 
-function ControlledMultiRotorHopOnMDP(dynamics::MultiRotorUAVDynamicsModel)
+function ControlledMultiRotorHopOnMDP(dynamics::MultiRotorUAVDynamicsModel,energy_time_alpha=0.5)
 
     multi_rotor_hopon_actions = Vector{HopOnAction}()
     idx::Int64 = 1
@@ -113,7 +114,7 @@ function ControlledMultiRotorHopOnMDP(dynamics::MultiRotorUAVDynamicsModel)
     end
     push!(multi_rotor_hopon_actions, HopOnAction(idx,nothing,true))
 
-    return ControlledMultiRotorHopOnMDP(dynamics,multi_rotor_hopon_actions,Inf*ones(HORIZON_LIM),true,Inf)
+    return ControlledMultiRotorHopOnMDP(dynamics,multi_rotor_hopon_actions,Inf*ones(HORIZON_LIM),true,Inf,energy_time_alpha)
 end
 
 
@@ -144,14 +145,14 @@ end
 function generate_sr(mdp::ControlledMultiRotorHopOnMDP, s::ControlledHopOnStateAugmented, 
                      a::HopOnAction, rng::RNG=Base.GLOBAL_RNG) where {RNG <: AbstractRNG}
 
-    cost = TIME_COEFFICIENT*MDP_TIMESTEP
+    cost = mdp.energy_time_alpha*TIME_COEFFICIENT*MDP_TIMESTEP
 
     # Can assume control_transfer is false
 
     # Depending on action, do various things
     if a.uavaction != nothing
         new_uavstate = next_state(mdp.dynamics, s.rel_uavstate, a.uavaction, rng)
-        cost += dynamics_cost(mdp.dynamics, s.rel_uavstate, new_uavstate)
+        cost += (1.0 - mdp.energy_time_alpha)*dynamics_cost(mdp.dynamics, s.rel_uavstate, new_uavstate)
 
         if s.horizon == 1
             # Add terminal reward if appropriate
@@ -400,6 +401,7 @@ mutable struct UnconstrainedFlightMDP{US <: UAVState, FA <: FlightAction, UDM <:
     dynamics::UDM
     discount::Float64
     actions::Vector{FA}
+    energy_time_alpha::Float64
 end
 
 actions(mdp::UnconstrainedFlightMDP) = mdp.actions
@@ -408,7 +410,7 @@ n_actions(mdp::UnconstrainedFlightMDP) = length(mdp.actions)
 discount(mdp::UnconstrainedFlightMDP) = mdp.discount # NOTE - Needs to be < 1.0 as infinite horizon problem
 
 
-function UnconstrainedFlightMDP(dynamics::MultiRotorUAVDynamicsModel, discount::Float64)
+function UnconstrainedFlightMDP(dynamics::MultiRotorUAVDynamicsModel, discount::Float64, energy_time_alpha::Float64=0.5)
 
     multi_rotor_flight_actions = Vector{FlightAction{MultiRotorUAVAction}}()
     idx::Int64 = 1
@@ -424,7 +426,7 @@ function UnconstrainedFlightMDP(dynamics::MultiRotorUAVDynamicsModel, discount::
 
     println(multi_rotor_flight_actions)
 
-    return UnconstrainedFlightMDP{MultiRotorUAVState, FlightAction{MultiRotorUAVAction}, typeof(dynamics)}(dynamics, discount, multi_rotor_flight_actions)
+    return UnconstrainedFlightMDP{MultiRotorUAVState, FlightAction{MultiRotorUAVAction}, typeof(dynamics)}(dynamics, discount, multi_rotor_flight_actions, energy_time_alpha)
 end
 
 function action_index(mdp::UnconstrainedFlightMDP, a::FlightAction)
@@ -440,10 +442,10 @@ end
 
 function generate_sr(mdp::UnconstrainedFlightMDP, s::US, a::FlightAction, rng::RNG=Base.GLOBAL_RNG) where {US <: UAVState, RNG <: AbstractRNG}
     
-    cost = TIME_COEFFICIENT*MDP_TIMESTEP
+    cost = mdp.energy_time_alpha*TIME_COEFFICIENT*MDP_TIMESTEP
 
     new_uavstate = next_state(mdp.dynamics, s, a.uav_action, rng)
-    cost += dynamics_cost(mdp.dynamics, s, new_uavstate)
+    cost += (1.0-mdp.energy_time_alpha)*dynamics_cost(mdp.dynamics, s, new_uavstate)
 
     if isterminal(mdp, new_uavstate)
         cost -= FLIGHT_REACH_REWARD
@@ -454,8 +456,8 @@ end
 
 function reward(mdp::UnconstrainedFlightMDP, s::US, a::FlightAction, sp::US) where {US <: UAVState}
 
-    cost = TIME_COEFFICIENT*MDP_TIMESTEP
-    cost += dynamics_cost(mdp.dynamics, s, sp.rel_uavstate)
+    cost = mdp.energy_time_alpha*TIME_COEFFICIENT*MDP_TIMESTEP + 
+            (1.0-mdp.energy_time_alpha)*dynamics_cost(mdp.dynamics, s, sp.rel_uavstate)
     return -cost 
 
 end

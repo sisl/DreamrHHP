@@ -76,6 +76,7 @@ for iter = 1:num_files
     used_epochs = 0
     attempted_hops = 0
     successful_hops = 0
+    st_line_dist = point_dist(start_pos, goal_pos)
 
     for epoch = 1:num_epochs
 
@@ -99,7 +100,11 @@ for iter = 1:num_files
 
                 # If it is currently on a car it should be coast, regardless of destination
                 if next_macro_edge[1].is_car == true
-                    @assert curr_state.on_car == true
+                    # @assert curr_state.on_car == true
+                    if curr_state.on_car == false
+                        is_success == false
+                        break
+                    end
                     mode = COAST
                 else
                     mode = FLIGHT
@@ -112,12 +117,20 @@ for iter = 1:num_files
         curr_dist = point_dist(Point(curr_state.uav_state.x,curr_state.uav_state.y), next_vertex.pos)
 
         if mode == FLIGHT
-            @assert curr_state.on_car == false
+            # @assert curr_state.on_car == false
+            if curr_state.on_car == true
+                is_success == false
+                break
+            end
 
             if curr_fin_time < Inf
                 # Constrained flight action
                 if curr_fin_time < MDP_TIMESTEP
-                    @assert next_vertex.is_car == true
+                    # @assert next_vertex.is_car == true
+                    if next_vertex.is_car == false
+                        is_success == false
+                        break
+                    end
 
                     curr_speed = sqrt(curr_state.uav_state.xdot^2 + curr_state.uav_state.ydot^2)
 
@@ -146,7 +159,11 @@ for iter = 1:num_files
 
             # TODO : Alternative is to put replan=true
         else
-            @assert curr_state.on_car == true
+            # @assert curr_state.on_car == true
+            if curr_state.on_car == false
+                is_success == false
+                break
+            end
             # COAST mode - simpler :P
             # If not in the last stretch, just STAY
             # If by some bug the next vertex is flight, just hopoff
@@ -170,11 +187,16 @@ for iter = 1:num_files
         # readline()
 
         prev_pos = Point(curr_state.uav_state.x, curr_state.uav_state.y)
+        prev_on_car = curr_state.on_car
 
         curr_state, reward, is_terminal, epoch_info_dict = step_SDMC(sdmc_sim, sdmc_action)
 
         curr_pos = Point(curr_state.uav_state.x, curr_state.uav_state.y)
-        dist_flown += point_dist(prev_pos, curr_pos)
+        
+        # Only count IF ACTUALLY FLOWN!
+        if curr_state.on_car == false && prev_on_car == false
+            dist_flown += point_dist(prev_pos, curr_pos)
+        end
 
         episode_reward += reward
 
@@ -212,7 +234,7 @@ for iter = 1:num_files
                 # TODO : This only happens when a hop is successful? OR unsuccessful hopoff
                 info("[OUTER LOOP]: Successful hop OR (not yet) unsuccessful hopoff")
                 # Check that last action was a hopon
-                @assert sdmc_action[1] == HOPON
+                # @assert sdmc_action[1] == HOPON
 
                 successful_hops += 1
 
@@ -248,7 +270,7 @@ for iter = 1:num_files
 
     # Update results stats
     result_stats_dict[iter] = Dict("success"=>is_success, "reward"=>episode_reward, 
-                                   "distance"=>dist_flown, "time"=>used_epochs*MDP_TIMESTEP,
+                                   "distance"=>dist_flown, "sl_dist"=>st_line_dist, "time"=>used_epochs*MDP_TIMESTEP,
                                    "attempted_hops"=>attempted_hops,"successful_hops"=>successful_hops)
 end
 

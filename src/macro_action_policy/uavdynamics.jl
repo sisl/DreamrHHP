@@ -20,10 +20,12 @@ end
 mutable struct MultiRotorUAVDynamicsModel <: UAVDynamicsModel
     timestep::Float64
     noise::Distributions.Normal{Float64}
+    hover_coefficient::Float64
+    flight_coefficient::Float64
 end
 
-function MultiRotorUAVDynamicsModel(t::Float64, sig::Float64)
-    return MultiRotorUAVDynamicsModel(t,Distributions.Normal(0.0,sig))
+function MultiRotorUAVDynamicsModel(t::Float64, sig::Float64, hover_coefficient::Float64, flight_coefficient::Float64)
+    return MultiRotorUAVDynamicsModel(t,Distributions.Normal(0.0, sig), hover_coefficient, flight_coefficient)
 end
 
 function generate_start_state(model::MultiRotorUAVDynamicsModel, rng::RNG=Base.GLOBAL_RNG) where {RNG <: AbstractRNG}
@@ -44,30 +46,6 @@ function get_relative_state_to_goal(model::MultiRotorUAVDynamicsModel, goal_pos:
     return MultiRotorUAVState(state.x - goal_pos.x, state.y - goal_pos.y, state.xdot, state.ydot)
 end
 
-
-
-# Truncate positions to their bounds
-# function truncated_state(state::MultiRotorUAVState)
-
-#     if state.xdot < -XYDOT_LIM
-#         txdot = -XYDOT_LIM
-#     elseif state.xdot > XYDOT_LIM
-#         txdot = XYDOT_LIM
-#     else
-#         txdot = state.xdot
-#     end
-
-#     if state.ydot < -XYDOT_LIM
-#         tydot = -XYDOT_LIM
-#     elseif state.ydot > XYDOT_LIM
-#         tydot = XYDOT_LIM
-#     else
-#         tydot = state.ydot
-#     end
-
-#     return MultiRotorUAVState(state.x,state.y,txdot,tydot)
-
-# end
 
 function truncate_vel(vel::Float64)
 
@@ -115,9 +93,9 @@ function dynamics_cost(model::MultiRotorUAVDynamicsModel, state::MultiRotorUAVSt
     cost = 0.0
 
     if dyn_dist < model.timestep*EPSILON && sqrt(next_state.xdot^2 + next_state.ydot^2) < model.timestep*EPSILON
-        cost += HOVER_COEFFICIENT*model.timestep
+        cost += model.hover_coefficient*model.timestep
     else
-        cost += FLIGHT_COEFFICIENT*dyn_dist
+        cost += model.flight_coefficient*dyn_dist
     end
 
     return cost

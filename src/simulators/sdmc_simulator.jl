@@ -52,7 +52,6 @@ function step_SDMC(sdmc::SDMCSimulator, action::SDMCAction)
             # Must not be on a car currently
             if sdmc.state.on_car == true
                 warn("Cannot Hop On while on a car!")
-                reward += -INVALID_ACTION_PENALTY
             else
                 prev_epoch_car_info = sdmc.epochs_dict[string(sdmc.epoch_counter-1)]["car-info"]
                 next_epoch_car_info = sdmc.epochs_dict[string(sdmc.epoch_counter+1)]["car-info"]
@@ -87,7 +86,6 @@ function step_SDMC(sdmc::SDMCSimulator, action::SDMCAction)
                     # println("CAR POS - ",car_pos)
                     # println("NEXT CAR POS - ",next_car_pos)
                     # println("Distance is ",dist," and speed is ",curr_speed)
-                    reward += -INVALID_ACTION_PENALTY
                 end
             end
         elseif action[1] == STAY
@@ -95,7 +93,6 @@ function step_SDMC(sdmc::SDMCSimulator, action::SDMCAction)
             # Must be on a car currently
             if sdmc.state.on_car == false
                 warn("Cannot Stay when not on car!")
-                reward += -INVALID_ACTION_PENALTY
             else
                 # Assign new location to uav
                 current_car = sdmc.state.car_id
@@ -107,7 +104,6 @@ function step_SDMC(sdmc::SDMCSimulator, action::SDMCAction)
             # Must be HOPOFF
             if sdmc.state.on_car == false
                 warn("Cannot Hop Off when not on car!")
-                reward += -INVALID_ACTION_PENALTY
             else
                 warn("Successful hopoff from car ",sdmc.state.car_id, " at epoch ",sdmc.epoch_counter)
                 current_car = sdmc.state.car_id

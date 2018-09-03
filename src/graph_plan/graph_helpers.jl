@@ -38,11 +38,6 @@ function CarDroneVertex(idx::Int, pos::Point, time_stamp::Float64, is_car::Bool,
 end
 
 
-# For new vertex, last updated TS is same
-# function CarDroneVertex(idx::Int, pos::Point, time_stamp::Float64)
-#     return CarDroneVertex(idx, pos, time_stamp, time_stamp)
-# end
-
 function Graphs.vertex_index(v::CarDroneVertex, g::SimpleVListGraph{CarDroneVertex})
     return v.idx
 end
@@ -71,7 +66,6 @@ function flight_edge_cost_nominal(u::CarDroneVertex, v::CarDroneVertex, d::Drone
             cost += TIME_COEFFICIENT*(dist*2.0/d.max_speed)
         end
     end
-    # println("Nominal edge - ",u.idx," to ",v.idx," of cost ",cost)
     return cost
 end
 
@@ -100,11 +94,6 @@ function flight_edge_cost_valuefn(udm::UDM, hopon_policy::PartialControlHopOnOff
             hopon_outhor_state = ControlledHopOnStateAugmented(rel_state,HORIZON_LIM)
             cost += -value(hopon_policy.in_horizon_policy, hopon_outhor_state) + addtn_time_cost
         end
-    end
-
-    if u.is_car && v.is_car && u.car_id != v.car_id
-        #cost = 0.5*cost
-        #println("Car-Car VFn edge - ",u.idx," to ",v.idx," of cost ",cost)
     end
 
     return cost

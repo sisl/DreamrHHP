@@ -11,15 +11,15 @@ using Distributions
 using HitchhikingDrones
 
 # LOAD POLICY HERE - SWAP OUT AS NEEDED
-policy_names = [ "policies/hopon_denseparamset3-poly-abort_thresh-0.95.jld"]
+policy_names = [ "policies/paramset2/hopon_denseparamset2-poly-abort_thresh-0.75.jld"]
 
-outfilename = "test1-set3.txt"
+outfilename = "test1-set2.txt"
 
 outfile = open(outfilename,"w")
 
 
 rng = MersenneTwister(15)
-NUM_EPISODES = 100
+NUM_EPISODES = parse(Int64,ARGS[1])
 
 # Now create MDP and simulator
 uav_dynamics = MultiRotorUAVDynamicsModel(MDP_TIMESTEP, ACC_NOISE_STD)
@@ -43,6 +43,7 @@ for pn in policy_names
     for i = 1:NUM_EPISODES
 
         reset_sim(sim)
+        println(sim.time_to_finish)
         reward::Float64 = 0.0
         is_success::Int64 = 0
 
@@ -50,11 +51,14 @@ for pn in policy_names
 
         println("Episode - ",i)
 
+        start_value = 0.0
+        nominal_cost = 0.0
+        start_pos = Point()
+        start_time = 0.0
+        log_value = false
+        aug_inhor_state_temp = nothing
+
         while true
-
-
-            # println(sim.time_to_finish)
-            # println(curr_uavstate)
 
             time_to_finish_prob = zeros(HORIZON_LIM+2)
             for j = 1:MC_TIME_NUMSAMPLES
@@ -76,6 +80,30 @@ for pn in policy_names
             # Normalize
             @assert sum(time_to_finish_prob) > 0.0
             time_to_finish_prob /= sum(time_to_finish_prob)
+
+            tf = mean(sim.time_to_finish)
+            start_pos = Point(curr_uavstate.x, curr_uavstate.y)
+            if tf < HORIZON_LIM*MDP_TIMESTEP && log_value == false
+                # log value first time
+                log_value = true
+                # time_est = 0.0
+                # # start_value = 0.0
+                # for hor = 2:HORIZON_LIM
+                #     time_prob = time_to_finish_prob[hor+1]
+
+                #     if time_prob > 0.0
+                start_time = tf
+                hor = convert(Int64,floor(tf/MDP_TIMESTEP))
+                aug_inhor_state_temp = ControlledHopOnStateAugmented(curr_uavstate, hor)
+                start_value = value(hopon_policy.in_horizon_policy, aug_inhor_state_temp)
+                #         time_est += time_prob*MDP_TIMESTEP*hor 
+                #     end
+                # end
+
+                # nominal_cost
+                nominal_cost = FLIGHT_COEFFICIENT*point_norm(Point(curr_uavstate.x, curr_uavstate.y)) + TIME_COEFFICIENT*tf
+            end
+
 
             action_values = zeros(n_actions(pc_hopon_mdp))
 
@@ -149,7 +177,8 @@ for pn in policy_names
         rewards[i] = reward
         successes[i] = is_success
 
-        # println(reward," ; ",is_success)
+        println("Success : ",is_success,"| True cost - ",-reward,"| Nominal cost - ",nominal_cost,"| Start value - ",-start_value)
+        println("Start rel pos - ",start_pos,"| Start time diff - ",start_time)
 
         # print("Press something to continue")
         # readline()

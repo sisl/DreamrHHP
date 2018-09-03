@@ -14,12 +14,13 @@ rng = MersenneTwister(5)
 DISCOUNT = 1.0
 policy_name = ARGS[1]
 poly_or_exp = ARGS[2]
+energy_time_alpha = parse(Float64,ARGS[3])
 
 policy_name = string(policy_name,"-",poly_or_exp)
 
 # Create MDP - Need Dynamics Model first
-uav_dynamics = MultiRotorUAVDynamicsModel(MDP_TIMESTEP, ACC_NOISE_STD)
-flight_mdp = UnconstrainedFlightMDP(uav_dynamics, DISCOUNT)
+uav_dynamics = MultiRotorUAVDynamicsModel(MDP_TIMESTEP, ACC_NOISE_STD, HOVER_COEFFICIENT, FLIGHT_COEFFICIENT)
+flight_mdp = UnconstrainedFlightMDP(uav_dynamics, DISCOUNT, energy_time_alpha)
 
 if poly_or_exp == "poly"
     xy_spacing = polyspace_symmetric(XY_LIM, XY_AXISVALS)
@@ -31,11 +32,10 @@ end
 
 flight_grid = RectangleGrid(xy_spacing, xy_spacing, xydot_spacing, xydot_spacing)
 grid_vertices = vertices(flight_grid)
-println(length(grid_vertices)," vertices!")
 
 
 flight_approximator = LocalGIFunctionApproximator(flight_grid)
-approx_flight_solver = LocalApproximationValueIterationSolver(flight_approximator,max_iterations=25,verbose=true,rng=rng,
+approx_flight_solver = LocalApproximationValueIterationSolver(flight_approximator,max_iterations=30,verbose=true,rng=rng,
                                                 is_mdp_generative=true,n_generative_samples=MC_GENERATIVE_NUMSAMPLES)
 approx_flight_policy = solve(approx_flight_solver, flight_mdp)
 policy_filename = string(policy_name,".jld")
