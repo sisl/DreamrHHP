@@ -14,7 +14,7 @@ end
 
 function reset_sim(sim::HopOnOffSingleCarSimulator)
     # randomly sample the initial time for car to reach waypoint
-    val = rand(sim.rng,Uniform(0.5*MDP_TIMESTEP*HORIZON_LIM,1.5*MDP_TIMESTEP*HORIZON_LIM))
+    val = rand(sim.rng,Uniform(0.5*MDP_TIMESTEP*HORIZON_LIM,1.25*MDP_TIMESTEP*HORIZON_LIM))
     sim.time_to_finish = Distributions.Normal(val,CAR_TIME_STD)
 end
 

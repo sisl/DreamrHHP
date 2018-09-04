@@ -53,18 +53,14 @@ function coast_edge_cost(u::CarDroneVertex, v::CarDroneVertex)
 end
 
 # Nominal flight edge cost when pc policy not used
-function flight_edge_cost_nominal(u::CarDroneVertex, v::CarDroneVertex, d::Drone)
+function flight_edge_cost_nominal(u::CarDroneVertex, v::CarDroneVertex, d::Drone, energy_time_alpha::Float64=0.5)
     dist::Float64 = point_dist(u.pos, v.pos)
-    cost::Float64 = FLIGHT_COEFFICIENT*dist
+    cost::Float64 = (1.0 - energy_time_alpha)*FLIGHT_COEFFICIENT*dist
     if v.time_stamp < Inf
-        cost += TIME_COEFFICIENT*(v.time_stamp - u.time_stamp)
+        cost += energy_time_alpha*TIME_COEFFICIENT*(v.time_stamp - u.time_stamp)
     else
-        if u.time_stamp == 0.0
-            cost = Inf
-        else
-            # TODO - Is this right????
-            cost += TIME_COEFFICIENT*(dist*2.0/d.max_speed)
-        end
+        # TODO - Is this right????
+        cost += energy_time_alpha*TIME_COEFFICIENT*(dist*1.25/d.max_speed)
     end
     return cost
 end

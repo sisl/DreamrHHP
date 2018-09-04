@@ -32,10 +32,10 @@ end
 
 flight_grid = RectangleGrid(xy_spacing, xy_spacing, xydot_spacing, xydot_spacing)
 grid_vertices = vertices(flight_grid)
-
+println(length(grid_vertices))
 
 flight_approximator = LocalGIFunctionApproximator(flight_grid)
-approx_flight_solver = LocalApproximationValueIterationSolver(flight_approximator,max_iterations=30,verbose=true,rng=rng,
+approx_flight_solver = LocalApproximationValueIterationSolver(flight_approximator,max_iterations=100,verbose=true,rng=rng,
                                                 is_mdp_generative=true,n_generative_samples=MC_GENERATIVE_NUMSAMPLES)
 approx_flight_policy = solve(approx_flight_solver, flight_mdp)
 policy_filename = string(policy_name,".jld")

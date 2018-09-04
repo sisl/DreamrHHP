@@ -12,11 +12,12 @@ rng = MersenneTwister(15)
 
 Logging.configure(level=ERROR)
 
-# Example usage /dir/to/data/set1-100-to-1000-(1 to 1000) set-1-100-to-1000-paramset3-mpc 1000 nolog
+# Example usage /dir/to/data/set1-100-to-1000-(1 to 1000) set-1-100-to-1000-paramset3-mpc 1000 <alpha>
 ep_file_prefix = ARGS[1]
 out_file_prefix = ARGS[2]
 num_files = parse(Int, ARGS[3])
-to_log = ARGS[4]
+energy_time_alpha = parse(Float64, ARGS[4])
+to_log = "nolog"
 
 result_stats_dict = Dict()
 
@@ -38,7 +39,7 @@ for iter = 1:num_files
     num_epochs = episode_dict["num_epochs"]-1
 
     # Create dynamics model and drone
-    uav_dynamics = MultiRotorUAVDynamicsModel(MDP_TIMESTEP, ACC_NOISE_STD)
+    uav_dynamics = MultiRotorUAVDynamicsModel(MDP_TIMESTEP, ACC_NOISE_STD, HOVER_COEFFICIENT, FLIGHT_COEFFICIENT)
     drone = Drone()
 
     # Create SDMC Simulator and get initial epoch
@@ -49,7 +50,7 @@ for iter = 1:num_files
     setup_graph(graph_planner, start_pos, goal_pos, get_epoch0_dict(sdmc_sim))
 
     # Flight edge weight fn - only nominal
-    flight_edge_wt_fn(u,v) = flight_edge_cost_nominal(u, v, drone)
+    flight_edge_wt_fn(u,v) = flight_edge_cost_nominal(u, v, drone, energy_time_alpha)
 
     log_output = false
     log_soln_dict = Dict()
@@ -88,6 +89,10 @@ for iter = 1:num_files
                 need_to_replan = false
                 # readline()
             end
+
+            # for mav in graph_planner.future_macro_actions_values
+            #     println(mav)
+            # end
 
             # If there is no next macro action, just continue (FOR NOW)
             if graph_planner.has_next_macro_action == false

@@ -13,21 +13,18 @@ using HitchhikingDrones
 # LOAD POLICY HERE - SWAP OUT AS NEEDED
 policy_names = [ "policies/paramset2/hopon_denseparamset2-poly-abort_thresh-0.75.jld"]
 
-outfilename = "test1-set2.txt"
-
+outfilename = ARGS[1]
 outfile = open(outfilename,"w")
 
 
 rng = MersenneTwister(15)
-NUM_EPISODES = parse(Int64,ARGS[1])
+NUM_EPISODES = parse(Int64,ARGS[2])
 
 # Now create MDP and simulator
-uav_dynamics = MultiRotorUAVDynamicsModel(MDP_TIMESTEP, ACC_NOISE_STD)
-pc_hopon_mdp = ControlledMultiRotorHopOnMDP(uav_dynamics)
-
+uav_dynamics = MultiRotorUAVDynamicsModel(MDP_TIMESTEP, ACC_NOISE_STD, HOVER_COEFFICIENT, FLIGHT_COEFFICIENT)
+pc_hopon_mdp = ControlledMultiRotorHopOnMDP(uav_dynamics,0.5)
 
 sim = HopOnOffSingleCarSimulator(MDP_TIMESTEP,rng)
-
 
 
 for pn in policy_names
@@ -40,12 +37,16 @@ for pn in policy_names
     successes = Vector{Int64}(NUM_EPISODES)
     aborts::Int64 = 0
 
+    avg_diff_aborts::Float64 = 0.0
+    avg_diff_success_val_nom::Float64 = 0.0
+    avg_diff_success_true_nom::Float64 = 0.0
+
     for i = 1:NUM_EPISODES
 
         reset_sim(sim)
-        println(sim.time_to_finish)
         reward::Float64 = 0.0
         is_success::Int64 = 0
+        is_abort::Bool = false
 
         curr_uavstate = generate_start_state(uav_dynamics, rng)
 
@@ -143,6 +144,7 @@ for pn in policy_names
             # Step forward and add reward
             if best_action.control_transfer == true
                 #println("ABORTED!")
+                is_abort = true
                 aborts += 1
                 break
             end
@@ -173,6 +175,15 @@ for pn in policy_names
 
         end # while
 
+        if is_success
+            avg_diff_success_true_nom += -reward - nominal_cost
+            avg_diff_success_val_nom += -start_value - nominal_cost
+        end
+
+        if is_abort
+            avg_diff_aborts += -reward - nominal_cost
+        end
+
         # Accumulate reward and succcess
         rewards[i] = reward
         successes[i] = is_success
@@ -182,18 +193,22 @@ for pn in policy_names
 
         # print("Press something to continue")
         # readline()
-
     end # for i
 
+    avg_diff_success_val_nom = avg_diff_success_val_nom/sum(successes)
+    avg_diff_success_true_nom = avg_diff_success_true_nom/sum(successes)
+    avg_diff_aborts = avg_diff_aborts/aborts
 
-    # Print final results
-    # println("AVG REWARDS - ",mean(rewards))
-    # println("SUCCESS RATE - ",mean(successes))
-    # println("ABROTS - ",aborts)
+    write(outfile, string("For successes: \n"))
+    write(outfile,string("Start Cost - Nominal Cost = ",avg_diff_success_val_nom,"\n"))
+    write(outfile,string("True Cost - Nominal Cost = ",avg_diff_success_true_nom,"\n"))
 
-    write(outfile, string("AVG REWARDS - ",mean(rewards)),"\n")
-    write(outfile, string("SUCCESS RATE - ",mean(successes)),"\n")
-    write(outfile, string("ABORTS - ",aborts),"\n\n")
+    write(outfile, string("For aborts: \n"))
+    write(outfile,string("Start Cost - Nominal Cost = ",avg_diff_aborts,"\n"))
+
+    # write(outfile, string("AVG REWARDS - ",mean(rewards)),"\n")
+    # write(outfile, string("SUCCESS RATE - ",mean(successes)),"\n")
+    # write(outfile, string("ABORTS - ",aborts),"\n\n")
 end
 
 close(outfile)

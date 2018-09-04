@@ -47,7 +47,7 @@ const VALID_FLIGHT_EDGE_DIST_RATIO = 1.1 # The minimum ratio between dist of a f
 
 # Cost parameters
 const FLIGHT_COEFFICIENT = 5000.0
-const HOVER_COEFFICIENT = 50.0
+const HOVER_COEFFICIENT = 100.0
 const TIME_COEFFICIENT = 1.0
 const NO_HOPOFF_PENALTY = 1000
 const FLIGHT_REACH_REWARD = 10000

@@ -1,9 +1,10 @@
-function get_flight_mpc_action_multirotor(curr_state::MultiRotorUAVState, next_vertex::CarDroneVertex, curr_fin_horizon::Int64)
+function get_flight_mpc_action_multirotor(curr_state::MultiRotorUAVState, 
+                                          next_vertex::CarDroneVertex, 
+                                          curr_fin_horizon::Int64)
 
     # MPC timesteps depends on finish horizon
     N = curr_fin_horizon > 20 ? 20 : curr_fin_horizon
 
-    SPEED_COEFF = 100
 
     # Setup solver
     solver = IpoptSolver(linear_solver="mumps",max_iter=100,print_level=0)

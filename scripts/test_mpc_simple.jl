@@ -2,13 +2,14 @@ using HitchhikingDrones
 using StaticArrays
 using JuMP, Ipopt, NLopt
 
-uav_dynamics = MultiRotorUAVDynamicsModel(MDP_TIMESTEP, ACC_NOISE_STD)
-flight_mdp = UnconstrainedFlightMDP(uav_dynamics, 0.9)
+uav_dynamics = MultiRotorUAVDynamicsModel(MDP_TIMESTEP, ACC_NOISE_STD, HOVER_COEFFICIENT, FLIGHT_COEFFICIENT)
+flight_mdp = UnconstrainedFlightMDP(uav_dynamics, 1.0)
 
-solver = IpoptSolver(linear_solver="mumps",max_iter=100)
+solver = IpoptSolver(linear_solver="mumps",max_iter=100,print_level=0)
 
 N = 20
-SPEED_COEFF = 100
+
+energy_time_alpha = 0.5
 
 # Define start and goal
 start_vect = SVector{4,Float64}(0.0,0.0,0.0,0.0)
@@ -28,15 +29,21 @@ while true
     end
     # Constrain start state
     @constraint(m, uav_state[1:4] .== curr_vect)
-    #@NLconstraint(m, sqrt(uav_state[4*N+3]^2 + uav_state[4*N+4]^2) <= XYDOT_HOP_THRESH)
+
+    # Set end velocity
+    @NLconstraint(m, abs(uav_state[4*N+3]^2) <= XYDOT_HOP_THRESH/sqrt(2))
+    @NLconstraint(m, abs(uav_state[4*N+4]^2) <= XYDOT_HOP_THRESH/sqrt(2))
+
+    # Constrain goal state
+    # @NLconstraint(m, abs(goal_pos[1] - uav_state[4*N+1]^2) <= 0.005/sqrt(2))
+    # @NLconstraint(m, abs(goal_pos[2] - uav_state[4*N+2]^2) <= 0.005/sqrt(2))
 
     # Define control actions
     @variable(m, -ACCELERATION_LIM <= acc[1:2*N] <= ACCELERATION_LIM)
 
     # Setup objective function
-    @NLobjective(m, Min, sum(FLIGHT_COEFFICIENT*sqrt( (goal_pos[1] - uav_state[4*(i-1)+1])^2 + 
+    @NLobjective(m, Min, (1.0-energy_time_alpha)*sum(FLIGHT_COEFFICIENT*sqrt( (goal_pos[1] - uav_state[4*(i-1)+1])^2 + 
         (goal_pos[2] - uav_state[4*(i-1)+2])^2)
-        #+ SPEED_COEFF*abs(XYDOT_HOP_THRESH - sqrt(uav_state[4*(i-1) + 3]^2 + uav_state[4*(i-1) + 4]^2))
         + HOVER_COEFFICIENT*( sqrt(uav_state[4*(i-1) + 3]^2 + uav_state[4*(i-1) + 4]^2)  < MDP_TIMESTEP*EPSILON)
          for i = 1:N+1))
 
@@ -81,7 +88,7 @@ while true
 
     println(curr_vect)
 
-    if norm(curr_vect[1:2] - goal_pos) < 0.01 && norm(curr_vect[3:4]) < XYDOT_HOP_THRESH
+    if norm(curr_vect[1:2] - goal_pos) < 0.005 && norm(curr_vect[3:4]) < XYDOT_HOP_THRESH
         break
     end
 

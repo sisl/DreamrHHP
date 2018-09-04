@@ -424,8 +424,6 @@ function UnconstrainedFlightMDP(dynamics::MultiRotorUAVDynamicsModel, discount::
         end
     end
 
-    println(multi_rotor_flight_actions)
-
     return UnconstrainedFlightMDP{MultiRotorUAVState, FlightAction{MultiRotorUAVAction}, typeof(dynamics)}(dynamics, discount, multi_rotor_flight_actions, energy_time_alpha)
 end
 

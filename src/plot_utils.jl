@@ -20,7 +20,7 @@ function plot_drone_and_active_cars_epoch!(epoch_dict::Dict, drone_pos::Point, g
 
     # Plot the start and goal
     p = Gadfly.plot(x=[drone_pos.x, goal_pos.x], y=[drone_pos.y, goal_pos.y], 
-        shape=[Shape.star1],Geom.point, Theme(background_color=parse(Colorant,"white"),default_color=RGBA(0.,0.,0.,0.35),point_size=12pt),
+        shape=[Shape.star1],Geom.point, Theme(background_color=parse(Colorant,"white"),default_color=RGBA(0.,0.,0.,0.35),point_size=11pt),
         xmin=[-1.],xmax=[1.],ymin=[-1.],ymax=[1.],Guide.xticks(ticks=nothing),Guide.xlabel(nothing),Guide.yticks(ticks=nothing),Guide.ylabel(nothing))
       
     for (car_id,car_ep_dict) in car_info_dict
@@ -42,8 +42,8 @@ function plot_drone_and_active_cars_epoch!(epoch_dict::Dict, drone_pos::Point, g
                 color_map[car_id] = car_color
             end
 
-            append!(p.layers, layer(x=pts_x, y=pts_y, Geom.point, shape=[Shape.xcross], Theme(default_color=car_color, point_size=4pt)))
-            append!(p.layers, layer(x=[curr_pos[1]], y=[curr_pos[2]], Geom.point, shape=[Shape.square], Theme(default_color=car_color, point_size=11pt)))
+            append!(p.layers, layer(x=pts_x, y=pts_y, Geom.point, shape=[Shape.xcross], Theme(default_color=car_color, point_size=3pt)))
+            append!(p.layers, layer(x=[curr_pos[1]], y=[curr_pos[2]], Geom.point, shape=[Shape.square], Theme(default_color=car_color, point_size=9pt)))
         end
     end    
 
