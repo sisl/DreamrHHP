@@ -16,7 +16,6 @@ using Colors
 using Graphs
 using JuMP
 using Ipopt
-using NLopt
 
 # POMDP Stuff
 using POMDPModels

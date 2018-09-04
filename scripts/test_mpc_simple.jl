@@ -1,6 +1,6 @@
 using HitchhikingDrones
 using StaticArrays
-using JuMP, Ipopt, NLopt
+using JuMP, Ipopt
 
 uav_dynamics = MultiRotorUAVDynamicsModel(MDP_TIMESTEP, ACC_NOISE_STD, HOVER_COEFFICIENT, FLIGHT_COEFFICIENT)
 flight_mdp = UnconstrainedFlightMDP(uav_dynamics, 1.0)
