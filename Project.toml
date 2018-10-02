@@ -1,0 +1,5 @@
+name = "HitchhikingDrones"
+uuid = "a0424596-c5de-11e8-3f39-753baeece293"
+repo = https://github.com/sisl/HitchhikingDrones.jl
+version = "0.0.1"
+

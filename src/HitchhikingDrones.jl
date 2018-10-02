@@ -1,7 +1,5 @@
-__precompile__()
 module HitchhikingDrones
 
-using Base
 using DataStructures
 using StaticArrays
 using Distributions
