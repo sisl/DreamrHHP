@@ -1,9 +1,15 @@
 module HitchhikingDrones
 
+# Stdlib Requirements
+using Logging
+using Printf
+using Random
+using Statistics
+
+# Common non-stdlib requirements
 using DataStructures
 using StaticArrays
 using Distributions
-using Logging
 
 # For plotting
 using Cairo 
@@ -16,9 +22,11 @@ using JuMP
 using Ipopt
 
 # POMDP Stuff
-using POMDPModels
 using POMDPs
-using POMDPToolbox
+using POMDPModelTools
+using POMDPModels
+using POMDPPolicies
+using POMDPSimulators
 using LocalApproximationValueIteration
 
 
