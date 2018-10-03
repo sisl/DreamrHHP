@@ -1,5 +1,3 @@
-using DataStructures
-
 # Data structure for coordinates
 struct Point
     x::Float64
@@ -31,21 +29,15 @@ function interpolate(p1::Point,p2::Point,frac::Float64)
 end
 
 mutable struct Car
-    route_idx_range::Vector{Int} # Size 2 but needs to be changeable
-    cargoDroneIdx::Int # 0 if no drone
+    route_idx_range::MVector{2, Int} # Size 2 but needs to be changeable
+    cargo_drone_idx::Int # 0 if no drone
     capacity::Int
     active::Bool
 end
 
 # Default constructor inactive car - unlikely to be used
-function InactiveCar()
-    return Car([0,0], 0, 1,false)
-end
-
-
-function Car(idx_range::Vector{Int})
-    return Car(idx_range, 0, 1, true)
-end
+InactiveCar() = Car([0,0], 0, 1,false)
+Car(idx_range::Vector{Int}) = Car(idx_range, 0, 1, true)
 
 
 # Any physical characteristics of the drone that are not updated during the problem
@@ -57,11 +49,5 @@ struct Drone
 end
 
 Drone() = Drone(0,MAX_DRONE_SPEED,Inf,Inf)
-
-function Drone(_idx::Int)
-    return Drone(_idx, MAX_DRONE_SPEED, Inf, Inf)
-end
-
-function Drone(_idx::Int,_max_speed::Float64)
-    return Drone(_idx, _max_speed, Inf, Inf)
-end
+Drone(_idx::Int) = Drone(_idx, MAX_DRONE_SPEED, Inf, Inf)
+Drone(_idx::Int,_max_speed::Float64) = Drone(_idx, _max_speed, Inf, Inf)
