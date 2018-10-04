@@ -3,60 +3,6 @@ A collection of several problem parameters for use by various MDP models.
 Collected here as a bunch of global variables with module-level scope
 Assume all are SI units?
 =#
-# Dynamics parameters
-# REAL-WORLD
-# const EPSILON = 0.00001
-# const ACCELERATION_LIM = 1.0
-# const ACCELERATION_VALS = 7
-# const HOP_DISTANCE_THRESHOLD = 1.0
-# const XY_LIM = 30.0
-# const XY_AXISVALS = 7
-# const XYDOT_LIM = 4.0
-# const XYDOT_AXISVALS = 9
-# const HORIZON_LIM = 20
-# const ACC_NOISE_STD = 0.1
-# const MAX_DRONE_SPEED = 5.6
-# const MAX_CAR_SPEED = 20.0
-
-
-# Scale Params
-const EPSILON = 0.00001
-const ACCELERATION_LIM = 0.0002
-const ACCELERATION_NUMVALS = 7
-const HOP_DISTANCE_THRESHOLD = 0.001
-const XY_LIM = 1.0
-const XY_AXISVALS = 19
-const XYDOT_LIM = 0.002
-const XYDOT_AXISVALS = 9
-const XYDOT_HOP_THRESH = 0.0008
-const HORIZON_LIM = 100
-const ACC_NOISE_STD = 0.00001
-const MAX_DRONE_SPEED = 0.00285
-const MAX_CAR_SPEED = 0.007
-const VALID_FLIGHT_EDGE_DIST_RATIO = 1.1 # The minimum ratio between dist of a flight edge and (max_speed*time_diff)
-
-
-# Time Params
-const MDP_TIMESTEP = 5.0
-const WAYPT_TIME_CHANGE_THRESHOLD = MDP_TIMESTEP/2.0
-const MAX_REPLAN_TIMESTEP = 20.0
-
-
-# Cost Params
-const FLIGHT_COEFFICIENT = 5000.0
-const HOVER_COEFFICIENT = 100.0
-const TIME_COEFFICIENT = 1.0
-const NO_HOPOFF_PENALTY = 1000
-const FLIGHT_REACH_REWARD = 10000
-
-# Additional simulator params - UNKNOWN to agent
-const CAR_TIME_STD = MDP_TIMESTEP/2.0
-const DELAY_SPEEDUP_PROB = 0.2
-const MAX_DELAY_SPEEDUP = 2.0*MDP_TIMESTEP
-const MC_TIME_NUMSAMPLES = 20
-const MC_GENERATIVE_NUMSAMPLES = 20
-
-
 
 struct ScaleParameters
     EPSILON::Float64
@@ -76,10 +22,14 @@ struct ScaleParameters
     MC_GENERATIVE_NUMSAMPLES::Int
 end
 
-struct TimeParameters
+struct SimTimeParameters
     MDP_TIMESTEP::Float64
     WAYPT_TIME_CHANGE_THRESHOLD::Float64
     MAX_REPLAN_TIMESTEP::Float64
+    CAR_TIME_STD::Float64
+    DELAY_SPEEDUP_PROB::Float64
+    MAX_DELAY_SPEEDUP::Float64
+    MC_TIME_NUMSAMPLES::Int
 end
 
 struct CostParameters
@@ -90,24 +40,67 @@ struct CostParameters
     FLIGHT_REACH_REWARD::Float64
 end
 
-struct SimParameters
-    CAR_TIME_STD::Float64
-    DELAY_SPEEDUP_PROB::Float64
-    MAX_DELAY_SPEEDUP::Float64
-    MC_TIME_NUMSAMPLES::Int
-end
 
 
 struct Parameters
     scale_params::Union{ScaleParameters, Nothing}
-    time_params::Union{TimeParameters, Nothing}
+    time_params::Union{SimTimeParameters, Nothing}
     cost_params::Union{CostParameters, Nothing}
-    sim_params::Union{SimParameters, Nothing}
 end
 
-# Parse for any one aspect or for all aspects
-parse_params()
-parse_params()
-parse_params()
-parse_params()
-parse_params()
+
+function parse_scale(filename::AbstractString)
+
+    params_key = TOML.parsefile(filename)
+
+    return ScaleParameters(params_key["EPSILON"],
+                           params_key["ACCELERATION_LIM"],
+                           params_key["ACCELERATION_NUMVALS"],
+                           params_key["HOP_DISTANCE_THRESHOLD"],
+                           params_key["XY_LIM"],
+                           params_key["XY_AXISVALS"],
+                           params_key["XYDOT_LIM"],
+                           params_key["XYDOT_AXISVALS"],
+                           params_key["XYDOT_HOP_THRESH"],
+                           params_key["HORIZON_LIM"],
+                           params_key["ACC_NOISE_STD"],
+                           params_key["MAX_DRONE_SPEED"],
+                           params_key["MAX_CAR_SPEED"],
+                           params_key["VALID_FLIGHT_EDGE_DIST_RATIO"],
+                           params_key["MC_GENERATIVE_NUMSAMPLES"])
+end
+
+
+function parse_simtime(filename::AbstractString)
+
+    params_key = TOML.parsefile(filename)
+
+    return SimTimeParameters(params_key["MDP_TIMESTEP"],
+                             get(params_key, "WAYPT_TIME_CHANGE_THRESHOLD", params_key["MDP_TIMESTEP"]/2.0),
+                             params_key["MAX_REPLAN_TIMESTEP"],
+                             get(params_key, "CAR_TIME_STD", params_key["MDP_TIMESTEP"]/2.0),
+                             params_key["DELAY_SPEEDUP_PROB"],
+                             params_key["MC_TIME_NUMSAMPLES"])
+end
+
+
+function parse_cost(filename::AbstractString)
+
+    params_key = TOML.parsefile(filename)
+
+    return CostParameters(params_key["FLIGHT_COEFFICIENT"],
+                          params_key["HOVER_COEFFICIENT"],
+                          params_key["TIME_COEFFICIENT"],
+                          params_key["NO_HOPOFF_PENALTY"],
+                          params_key["FLIGHT_REACH_REWARD"])
+end
+
+
+function parse_params(;scale_file::AbstractString="", simtime_file::AbstractString="", cost_file::AbstractString="")
+
+    spar = (scale_file != "") ? parse_scale(scale_file) : nothing
+    stpar = (simtime_file != "") ? parse_simtime(simtime_file) : nothing
+    cpar = (cost_file != "") ? parse_cost(cost_file) : nothing
+
+    return Parameters(spar, stpar, cpar)
+end

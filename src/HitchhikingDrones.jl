@@ -29,6 +29,9 @@ using POMDPPolicies
 using POMDPSimulators
 using LocalApproximationValueIteration
 
+# Parsing and support
+using TOML
+
 
 # package code goes here
 
@@ -123,6 +126,17 @@ using LocalApproximationValueIteration
 #     MAX_CAR_SPEED,
 #     MAX_REPLAN_TIMESTEP
 
+# For parameters
+export
+    ScaleParameters,
+    SimTimeParameters,
+    CostParameters,
+    Parameters,
+    parse_scale,
+    parse_simtime,
+    parse_cost,
+    parse_params
+
 # Types information
 export
     Point,
@@ -158,7 +172,7 @@ export
 
 
 include("types.jl")
-# include("parameters.jl")
+include("parameters.jl")
 # include("plot_utils.jl")
 # include("utils.jl")
 # include("macro_action_policy/uavdynamics.jl")
