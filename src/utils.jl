@@ -1,11 +1,19 @@
+"""
+    log2space_symmetric(symm_val::Float64, n::Int64, base_val::Int64=2)
+
+Returns a vector of logarithmically spaced numbers from -x to +x, symmetrically
+spaced around 0. The number of values must be odd to reflect 0 and a symmetric
+number of arguments around it.
+"""
 function log2space_symmetric(symm_val::Float64, n::Int64, base_val::Int64=2)
 
     # Ensure that the number of terms is odd (so around 0.0)
     @assert n%2==1
+
     # Ensure that the value itself is positive
     @assert symm_val > 0
 
-    vals = Vector{Float64}()
+    vals = Vector{Float64}(undef)
     idx = 1
     midpt = convert(Int64,round((n-1)/2))
 
@@ -23,6 +31,13 @@ function log2space_symmetric(symm_val::Float64, n::Int64, base_val::Int64=2)
 end
 
 
+"""
+    polyspace_symmetric(symm_val::Float64, n::Int64, exp_val::Int64=3)
+
+Returns a vector of polynomially spaced numbers from -x to +x, symmetrically
+spaced around 0. The number of values must be odd to reflect 0 and a symmetric
+number of arguments around it.
+"""
 function polyspace_symmetric(symm_val::Float64, n::Int64, exp_val::Int64=3)
 
     # Ensure that the number of terms is odd (so around 0.0)
@@ -30,7 +45,7 @@ function polyspace_symmetric(symm_val::Float64, n::Int64, exp_val::Int64=3)
     # Ensure that the value itself is positive
     @assert symm_val > 0
 
-    vals = Vector{Float64}()
+    vals = Vector{Float64}(undef)
     idx = 1
     midpt = convert(Int64,round((n-1)/2))
 
@@ -48,6 +63,9 @@ function polyspace_symmetric(symm_val::Float64, n::Int64, exp_val::Int64=3)
     return vals
 end
 
+"""
+Util for computing trivial straight line distance and time to reach goal
+"""
 function st_line_reward_time(dist::Float64)
 
     # For speedup and slow down - 2 * 1/2 * at^2

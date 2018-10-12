@@ -15,6 +15,7 @@ using Distributions
 using Cairo 
 using Gadfly
 using Colors
+using Measures
 
 # Graph planning/MPC stuff
 using Graphs
@@ -161,20 +162,20 @@ export
 #     get_epoch0_dict
 
 
-# # General utils
-# export
-#     plot_car_route,
-#     plot_drone_and_active_cars_epoch!,
-#     log2space_symmetric,
-#     polyspace_symmetric,
-#     st_line_reward_time
+# General utils
+export
+    plot_car_route,
+    plot_drone_and_active_cars_epoch!,
+    log2space_symmetric,
+    polyspace_symmetric,
+    st_line_reward_time
 
 
 
 include("types.jl")
 include("parameters.jl")
-# include("plot_utils.jl")
-# include("utils.jl")
+include("plot_utils.jl")
+include("utils.jl")
 # include("macro_action_policy/uavdynamics.jl")
 # include("macro_action_policy/partial_control_mdp.jl")
 # include("graph_plan/astar_visitor_light.jl")
