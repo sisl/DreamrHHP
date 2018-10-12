@@ -2,14 +2,20 @@ abstract type UAVDynamicsModel end
 abstract type UAVState end
 abstract type UAVAction end
 
-mutable struct MultiRotorUAVState <: UAVState
+"""
+Data type which represents the position and velocity of the UAV
+"""
+struct MultiRotorUAVState <: UAVState
     x::Float64
     y::Float64
     xdot::Float64
     ydot::Float64
 end
 
-mutable struct MultiRotorUAVAction <: UAVAction
+"""
+Provide acceleration independently in x and y directions
+"""
+struct MultiRotorUAVAction <: UAVAction
     xddot::Float64
     yddot::Float64
 end
@@ -17,17 +23,23 @@ end
 # Actions are defined as accelerations OR hop-on/hop-off
 @enum HOP_ACTION HOPON=1 STAY=0 HOPOFF=-1
 
-mutable struct MultiRotorUAVDynamicsModel <: UAVDynamicsModel
+
+"""
+Simulates physical dynamics of UAV, mapping state and control to next state
+"""
+struct MultiRotorUAVDynamicsModel <: UAVDynamicsModel
     timestep::Float64
     noise::Distributions.Normal{Float64}
-    hover_coefficient::Float64
-    flight_coefficient::Float64
+    params::Parameters
 end
 
-function MultiRotorUAVDynamicsModel(t::Float64, sig::Float64, hover_coefficient::Float64, flight_coefficient::Float64)
-    return MultiRotorUAVDynamicsModel(t,Distributions.Normal(0.0, sig), hover_coefficient, flight_coefficient)
+function MultiRotorUAVDynamicsModel(t::Float64, sig::Float64, params::Parameters)
+    return MultiRotorUAVDynamicsModel(t,Distributions.Normal(0.0, sig), params)
 end
 
+"""
+Generate a MultiRotorUAVState with a random location inside the grid and at rest
+"""
 function generate_start_state(model::MultiRotorUAVDynamicsModel, rng::RNG=Base.GLOBAL_RNG) where {RNG <: AbstractRNG}
     x = rand(rng,Uniform(-XY_LIM,XY_LIM))
     y = rand(rng,Uniform(-XY_LIM,XY_LIM))
@@ -37,32 +49,42 @@ function generate_start_state(model::MultiRotorUAVDynamicsModel, rng::RNG=Base.G
     return MultiRotorUAVState(x,y,xdot,ydot)
 end
 
-# For some known start position
+"""
+Given a Point instance, generate the corresponding MultiRotorUAVState at rest at that position
+"""
 function get_state_at_rest(model::MultiRotorUAVDynamicsModel, p::Point)
     return MultiRotorUAVState(p.x, p.y, 0.0, 0.0)
 end
 
+"""
+Given some goal position, get the MultiRotorUAVState with relative position and own velocity
+"""
 function get_relative_state_to_goal(model::MultiRotorUAVDynamicsModel, goal_pos::Point, state::MultiRotorUAVState)
     return MultiRotorUAVState(state.x - goal_pos.x, state.y - goal_pos.y, state.xdot, state.ydot)
 end
 
+"""
+Truncate velocity to [-lim, +lim] 
+"""
+function truncate_vel(vel::Float64, xydot_lim::Float64)
 
-function truncate_vel(vel::Float64)
-
-    if vel < -XYDOT_LIM
-        return -XYDOT_LIM
-    elseif vel > XYDOT_LIM
-        return XYDOT_LIM
+    if vel < -xydot_lim
+        return -xydot_lim
+    elseif vel > xydot_lim
+        return xydot_lim
     end
     
     return vel
 end
 
+"""
+Propagate the MultiRotorUAVState through the dynamics model (without noise)
+"""
 function apply_controls(model::MultiRotorUAVDynamicsModel, state::MultiRotorUAVState, xddot::Float64, yddot::Float64)
 
     # Update position and velocity exactly
-    xdot = truncate_vel(state.xdot + xddot*model.timestep)
-    ydot = truncate_vel(state.ydot + yddot*model.timestep)
+    xdot = truncate_vel(state.xdot + xddot*model.timestep, model.params.scale_params.XYDOT_LIM)
+    ydot = truncate_vel(state.ydot + yddot*model.timestep, model.params.scale_params.XYDOT_LIM)
 
     # Get true effective accelerations
     true_xddot = (xdot - state.xdot)/model.timestep
@@ -74,7 +96,9 @@ function apply_controls(model::MultiRotorUAVDynamicsModel, state::MultiRotorUAVS
     return MultiRotorUAVState(x,y,xdot,ydot)
 end
 
-
+"""
+Generate the next state using noisy dynamics
+"""
 function next_state(model::MultiRotorUAVDynamicsModel, state::MultiRotorUAVState, action::MultiRotorUAVAction, rng::RNG=Base.GLOBAL_RNG) where {RNG <: AbstractRNG}
     
     # Sample noisy acceleration
