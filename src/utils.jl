@@ -1,4 +1,20 @@
 """
+    truncate_vel(vel::Float64, xydot_lim::Float64)
+
+Truncate velocity to [-lim, +lim] 
+"""
+function truncate_vel(vel::Float64, xydot_lim::Float64)
+
+    if vel < -xydot_lim
+        return -xydot_lim
+    elseif vel > xydot_lim
+        return xydot_lim
+    end
+    
+    return vel
+end
+
+"""
     log2space_symmetric(symm_val::Float64, n::Int64, base_val::Int64=2)
 
 Returns a vector of logarithmically spaced numbers from -x to +x, symmetrically

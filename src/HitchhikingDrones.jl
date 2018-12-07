@@ -10,6 +10,7 @@ using Statistics
 using DataStructures
 using StaticArrays
 using Distributions
+using PDMats
 
 # For plotting
 using Cairo 
@@ -37,20 +38,19 @@ using TOML
 # package code goes here
 
 # Dynamics stuff
-# export
-#     UAVDynamicsModel,
-#     UAVState,
-#     UAVAction,
-#     MultiRotorUAVState,
-#     MultiRotorUAVAction,
-#     MultiRotorUAVDynamicsModel,
-#     sigma_point_states_weights,
-#     next_state,
-#     dynamics_cost,
-#     HOP_ACTION,
-#     HOPON,
-#     STAY,
-#     HOPOFF
+export
+    UAVDynamicsModel,
+    UAVState,
+    UAVAction,
+    MultiRotorUAVState,
+    MultiRotorUAVAction,
+    MultiRotorUAVDynamicsModel,
+    next_state,
+    dynamics_cost,
+    HOP_ACTION,
+    HOPON,
+    STAY,
+    HOPOFF
 
 
 # # Graph Planner components
@@ -164,6 +164,7 @@ export
 
 # General utils
 export
+    truncate_vel,
     plot_car_route,
     plot_drone_and_active_cars_epoch!,
     log2space_symmetric,
@@ -176,7 +177,7 @@ include("types.jl")
 include("parameters.jl")
 include("plot_utils.jl")
 include("utils.jl")
-# include("macro_action_policy/uavdynamics.jl")
+include("macro_action_policy/uavdynamics.jl")
 # include("macro_action_policy/partial_control_mdp.jl")
 # include("graph_plan/astar_visitor_light.jl")
 # include("graph_plan/graph_helpers.jl")
