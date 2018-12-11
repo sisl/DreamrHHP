@@ -143,12 +143,11 @@ export
     HopOnOffSingleCarSimulator,
     reset_sim,
     sample_finish_time,
-    step_sim
-#     SDMCState,
-#     SDMCAction,
-#     SDMCSimulator,
-#     step_SDMC,
-#     get_epoch0_dict
+    step_sim,
+    SDMCState,
+    SDMCAction,
+    SDMCSimulator,
+    get_epoch0_dict
 
 
 # General utils
@@ -173,7 +172,7 @@ include("macro_action_policy/partial_control_mdp.jl")
 # include("graph_plan/graph_solution.jl")
 # include("graph_plan/mpc_utils.jl")
 include("simulators/hoponoff_singlecar_simulator.jl")
-# include("simulators/sdmc_simulator.jl")
+include("simulators/sdmc_simulator.jl")
 
 
 # Plot Utils
