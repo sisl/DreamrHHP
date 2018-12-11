@@ -3,50 +3,69 @@ using LocalFunctionApproximation
 using LocalApproximationValueIteration
 using POMDPs
 using POMDPModels
-using POMDPToolbox
+using POMDPModelTools
 using StaticArrays
-using JLD
+using JLD2, FileIO
+using Random
+using Logging
 using Distributions
-
+using PDMats
+using Statistics
 using HitchhikingDrones
 
-# LOAD POLICY HERE - SWAP OUT AS NEEDED
-policy_names = [ "policies/paramset2/hopon_denseparamset2-poly-abort_thresh-0.75.jld"]
-
-outfilename = ARGS[1]
-outfile = open(outfilename,"w")
-
-
 rng = MersenneTwister(15)
-NUM_EPISODES = parse(Int64,ARGS[2])
+
+# Triage for now - inhor and outhor policy names
+inhor_policy_names = ["../data/policies/test-cf-poly-abort_thresh-0.5-inhor.jld2"]
+outhor_policy_names = ["../data/policies/test-cf-poly-preabort-outhor.jld2"]
+
+
+# Comment out when running script
+ARGS = ["../data/paramsets/scale-small-test.toml","../data/paramsets/simtime-small-test.toml",
+        "../data/paramsets/cost-1.toml",
+        "test-smallscale.txt", "1", "0.75"]
+
+scale_file = ARGS[1]
+simtime_file = ARGS[2]
+cost_file = ARGS[3]
+outfilename = ARGS[4]
+NUM_EPISODES = parse(Int64,ARGS[5])
+energy_time_alpha = parse(Float64, ARGS[6])
+
+# First, parse parameter files to get filenames and construct params object
+params = parse_params(scale_file=scale_file, simtime_file=simtime_file, cost_file=cost_file)
 
 # Now create MDP and simulator
-uav_dynamics = MultiRotorUAVDynamicsModel(MDP_TIMESTEP, ACC_NOISE_STD, HOVER_COEFFICIENT, FLIGHT_COEFFICIENT)
-pc_hopon_mdp = ControlledMultiRotorHopOnMDP(uav_dynamics,0.5)
+uav_dynamics = MultiRotorUAVDynamicsModel(params.time_params.MDP_TIMESTEP, params.scale_params.ACC_NOISE_STD, params)
+pc_hopon_mdp = ControlledHopOnMDP{MultiRotorUAVState, MultiRotorUAVAction}(uav_dynamics, energy_time_alpha)
 
-sim = HopOnOffSingleCarSimulator(MDP_TIMESTEP,rng)
+sim = HopOnOffSingleCarSimulator(params.time_params.MDP_TIMESTEP, params, rng)
 
+outfile = open(outfilename,"w")
 
-for pn in policy_names
+for (inhor_pn, outhor_pn) in zip(inhor_policy_names, outhor_policy_names)
 
-    println(pn)
-    write(outfile,string(pn,"\n"))
-    hopon_policy = load(pn,"hopon_policy")
+    @show inhor_pn
+    @show outhor_pn
 
-    rewards = Vector{Float64}(NUM_EPISODES)
-    successes = Vector{Int64}(NUM_EPISODES)
-    aborts::Int64 = 0
+    write(outfile,string(inhor_pn,"\t",outhor_pn,"\n"))
+    
+    hopon_policy = load_partialcontrolpolicy(inhor_pn, outhor_pn)
 
-    avg_diff_aborts::Float64 = 0.0
-    avg_diff_success_val_nom::Float64 = 0.0
-    avg_diff_success_true_nom::Float64 = 0.0
+    rewards = Vector{Float64}(undef, NUM_EPISODES)
+    successes = Vector{Int64}(undef, NUM_EPISODES)
+    aborts = 0
+
+    avg_diff_aborts = 0.0
+    avg_diff_success_val_nom = 0.0
+    avg_diff_success_true_nom = 0.0
 
     for i = 1:NUM_EPISODES
 
         reset_sim(sim)
-        reward::Float64 = 0.0
-        is_success::Int64 = 0
-        is_abort::Bool = false
+        reward = 0.0
+        is_success = false
+        is_abort = false
 
         curr_uavstate = generate_start_state(uav_dynamics, rng)
 
@@ -61,22 +80,21 @@ for pn in policy_names
 
         while true
 
-            time_to_finish_prob = zeros(HORIZON_LIM+2)
-            for j = 1:MC_TIME_NUMSAMPLES
-                tval::Float64 = sample_finish_time(sim)/MDP_TIMESTEP
-                if tval >= HORIZON_LIM
+            time_to_finish_prob = zeros(params.time_params.HORIZON_LIM+2)
+            for j = 1:params.time_params.MC_TIME_NUMSAMPLES
+                tval::Float64 = sample_finish_time(sim)/params.time_params.MDP_TIMESTEP
+                if tval >= params.time_params.HORIZON_LIM
                     time_to_finish_prob[end] += 1.0
                 else
                     # Tricky part - don't round off but rather allocate
-                    low = Int64(floor(tval))
-                    high = Int64(ceil(tval))
+                    low = convert(Int64,floor(tval))
+                    high = convert(Int64,ceil(tval))
                     low_wt = tval - floor(tval)
                     time_to_finish_prob[max(1,low+1)] += low_wt
                     time_to_finish_prob[max(1,high+1)] += 1.0 - low_wt
                 end
             end
 
-            # println(time_to_finish_prob)
 
             # Normalize
             @assert sum(time_to_finish_prob) > 0.0
@@ -84,7 +102,7 @@ for pn in policy_names
 
             tf = mean(sim.time_to_finish)
             start_pos = Point(curr_uavstate.x, curr_uavstate.y)
-            if tf < HORIZON_LIM*MDP_TIMESTEP && log_value == false
+            if tf < params.time_params.HORIZON_LIM*params.time_params.MDP_TIMESTEP && log_value == false
                 # log value first time
                 log_value = true
                 # time_est = 0.0
@@ -94,33 +112,35 @@ for pn in policy_names
 
                 #     if time_prob > 0.0
                 start_time = tf
-                hor = convert(Int64,floor(tf/MDP_TIMESTEP))
-                aug_inhor_state_temp = ControlledHopOnStateAugmented(curr_uavstate, hor)
+                hor = convert(Int64,floor(tf/params.time_params.MDP_TIMESTEP))
+                aug_inhor_state_temp = ControlledHopOnStateAugmented{MultiRotorUAVState}(curr_uavstate, hor)
                 start_value = value(hopon_policy.in_horizon_policy, aug_inhor_state_temp)
                 #         time_est += time_prob*MDP_TIMESTEP*hor 
                 #     end
                 # end
 
                 # nominal_cost
-                nominal_cost = FLIGHT_COEFFICIENT*point_norm(Point(curr_uavstate.x, curr_uavstate.y)) + TIME_COEFFICIENT*tf
+                nominal_cost = params.cost_params.FLIGHT_COEFFICIENT*point_norm(Point(curr_uavstate.x, curr_uavstate.y)) + 
+                               params.cost_params.TIME_COEFFICIENT*tf
             end
 
 
             action_values = zeros(n_actions(pc_hopon_mdp))
 
+            @info "Iterating over actions"
             # Now create a ghost state for each time_to_finish_prob
-            for a in iterator(actions(pc_hopon_mdp))
-                iaction = action_index(pc_hopon_mdp,a)
+            for a in actions(pc_hopon_mdp)
+                iaction = actionindex(pc_hopon_mdp,a)
 
                 # For horizon 0, just lookup value regardless of action
 
                 # For horizon 1 to HOR_LIM, augment state with horizon and lookup action value from in_hor policy
                 # Then add based on weight in time_to_finish_prob
-                for hor = 1:HORIZON_LIM
+                for hor = 1:params.time_params.HORIZON_LIM
                     time_prob = time_to_finish_prob[hor+1]
 
                     if time_prob > 0.0
-                        aug_inhor_state::ControlledHopOnStateAugmented = ControlledHopOnStateAugmented(curr_uavstate, hor)
+                        aug_inhor_state = ControlledHopOnStateAugmented{MultiRotorUAVState}(curr_uavstate, hor)
                         action_values[iaction] += time_prob*action_value(hopon_policy.in_horizon_policy, aug_inhor_state, a)
                     end
                 end
@@ -128,35 +148,36 @@ for pn in policy_names
                 # For horizon HOR_LIM + 1, augment state with horizon 0 and lookup action value from out_hor policy
                 time_prob = time_to_finish_prob[end]
                 if time_prob > 0.0
-                    aug_outhor_state::ControlledHopOnStateAugmented = ControlledHopOnStateAugmented(curr_uavstate, HORIZON_LIM+1)
-                    action_values[iaction] += time_prob*action_value(hopon_policy.out_horizon_policy,aug_outhor_state,a)
+                    aug_outhor_state = ControlledHopOnStateAugmented{MultiRotorUAVState}(curr_uavstate, params.time_params.HORIZON_LIM+1)
+                    action_values[iaction] += time_prob*action_value(hopon_policy.out_horizon_policy, aug_outhor_state, a)
                 end
             end # for a
 
             # Choose best action
             # From EITHER action_map
-            best_action_idx::Int64 = indmax(action_values)
-            best_action::HopOnAction = hopon_policy.in_horizon_policy.action_map[best_action_idx]
+            best_action_idx = argmax(action_values)
+            best_action = hopon_policy.in_horizon_policy.action_map[best_action_idx]
 
 
-            #println("Action chosen - ",best_action)
+            @show best_action
 
             # Step forward and add reward
             if best_action.control_transfer == true
-                #println("ABORTED!")
+                println("ABORTED!")
                 is_abort = true
                 aborts += 1
                 break
             end
 
             # Dynamics action
-            cost = TIME_COEFFICIENT*MDP_TIMESTEP
+            cost = params.time_params.TIME_COEFFICIENT*params.time_params.MDP_TIMESTEP
             new_uavstate = next_state(uav_dynamics, curr_uavstate, best_action.uavaction, rng)
             cost += dynamics_cost(uav_dynamics, curr_uavstate, new_uavstate)
 
             reward += -cost
 
             is_done = step_sim(sim)
+            @show is_done
 
             curr_uavstate = new_uavstate
             
@@ -164,14 +185,15 @@ for pn in policy_names
             if is_done
                 curr_rel_pos = Point(curr_uavstate.x, curr_uavstate.y)
                 curr_speed = sqrt(curr_uavstate.xdot^2 + curr_uavstate.ydot^2)
-                if point_norm(curr_rel_pos) < MDP_TIMESTEP*HOP_DISTANCE_THRESHOLD && curr_speed < XYDOT_HOP_THRESH
-                    is_success = 1
+                if point_norm(curr_rel_pos) < params.time_params.MDP_TIMESTEP*params.scale_params.HOP_DISTANCE_THRESHOLD && 
+                    curr_speed < params.scale_params.XYDOT_HOP_THRESH
+                    is_success = true
                 end
                 break
             end
 
-            # print("Press something to continue")
-            # readline()
+            print("Press something to continue")
+            readline()
 
         end # while
 
@@ -206,9 +228,9 @@ for pn in policy_names
     write(outfile, string("For aborts: \n"))
     write(outfile,string("Start Cost - Nominal Cost = ",avg_diff_aborts,"\n"))
 
-    # write(outfile, string("AVG REWARDS - ",mean(rewards)),"\n")
-    # write(outfile, string("SUCCESS RATE - ",mean(successes)),"\n")
-    # write(outfile, string("ABORTS - ",aborts),"\n\n")
+    write(outfile, string("AVG REWARDS - ",mean(rewards)),"\n")
+    write(outfile, string("SUCCESS RATE - ",mean(successes)),"\n")
+    write(outfile, string("ABORTS - ",aborts),"\n\n")
 end
 
 close(outfile)

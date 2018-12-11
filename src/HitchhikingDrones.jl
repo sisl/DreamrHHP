@@ -139,11 +139,11 @@ export
     Drone
 
 # # For simulator
-# export
-#     HopOnOffSingleCarSimulator,
-#     reset_sim,
-#     sample_finish_time,
-#     step_sim,
+export
+    HopOnOffSingleCarSimulator,
+    reset_sim,
+    sample_finish_time,
+    step_sim
 #     SDMCState,
 #     SDMCAction,
 #     SDMCSimulator,
@@ -158,7 +158,8 @@ export
     polyspace_symmetric,
     st_line_reward_time,
     save_localapproxvi_policy_to_jld2,
-    load_localapproxvi_policy_from_jld2
+    load_localapproxvi_policy_from_jld2,
+    load_partialcontrolpolicy
 
 
 
@@ -171,7 +172,7 @@ include("macro_action_policy/partial_control_mdp.jl")
 # include("graph_plan/graph_helpers.jl")
 # include("graph_plan/graph_solution.jl")
 # include("graph_plan/mpc_utils.jl")
-# include("simulators/hoponoff_singlecar_simulator.jl")
+include("simulators/hoponoff_singlecar_simulator.jl")
 # include("simulators/sdmc_simulator.jl")
 
 

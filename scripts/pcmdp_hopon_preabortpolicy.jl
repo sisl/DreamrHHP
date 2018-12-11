@@ -14,7 +14,7 @@ using HitchhikingDrones
 
 # Commented to test in REPL easily
 # ARGS = String["../data/paramsets/scale-small-test.toml","../data/paramsets/simtime-small-test.toml",
-#               "../data/paramsets/cost-1.toml","test-cf","poly","0.75"]
+#               "../data/paramsets/cost-1.toml","../data/policies/test-cf","poly","0.75"]
 
 # Get policy for param setting PRIOR TO RESOLVING WITH BETA!
 

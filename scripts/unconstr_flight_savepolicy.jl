@@ -13,7 +13,8 @@ using PDMats
 using HitchhikingDrones
 
 # Comment if testing in REPL
-# ARGS = String["../data/paramsets/scale-1.toml","../data/paramsets/simtime-1.toml","../data/paramsets/cost-1.toml","test","poly","0.75"]
+# ARGS = String["../data/paramsets/scale-small-test.toml","../data/paramsets/simtime-small-test.toml",
+#                 "../data/paramsets/cost-1.toml","../data/policies/test-uf","poly","0.75"]
 
 
 rng = MersenneTwister(5)

@@ -27,8 +27,6 @@ struct SimTimeParameters
     WAYPT_TIME_CHANGE_THRESHOLD::Float64
     MAX_REPLAN_TIMESTEP::Float64
     CAR_TIME_STD::Float64
-    DELAY_SPEEDUP_PROB::Float64
-    MAX_DELAY_SPEEDUP::Float64
     MC_TIME_NUMSAMPLES::Int
 end
 
@@ -79,8 +77,6 @@ function parse_simtime(filename::AbstractString)
                              get(params_key, "WAYPT_TIME_CHANGE_THRESHOLD", params_key["MDP_TIMESTEP"]/2.0),
                              params_key["MAX_REPLAN_TIMESTEP"],
                              get(params_key, "CAR_TIME_STD", params_key["MDP_TIMESTEP"]/2.0),
-                             params_key["DELAY_SPEEDUP_PROB"],
-                             get(params_key, "MAX_DELAY_SPEEDUP", params_key["MDP_TIMESTEP"]*2.0),
                              params_key["MC_TIME_NUMSAMPLES"])
 end
 

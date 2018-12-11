@@ -58,10 +58,7 @@ POMDPs.actions(mdp::HopOffMDP) = mdp.actions
 POMDPs.actions(mdp::HopOffMDP, s::HopOffStateAugmented) = mdp.actions
 POMDPs.n_actions(mdp::HopOffMDP) = length(mdp.actions)
 POMDPs.discount(mdp::HopOffMDP) = 1.0
-
-function POMDPs.actionindex(mdp::HopOffMDP, a::HopOffAction)
-    return a.action_idx
-end
+POMDPs.actionindex(mdp::HopOffMDP, a::HopOffAction) = a.action_idx
 
 """
 Hitchhiking state is terminal if not on car or end of horizon
@@ -266,8 +263,8 @@ function generate_time_to_finish_dist(curr_time_to_fin::Float64, rng::RNG=Base.G
         if tval >= mdp.params.time_params.HORIZON_LIM
             time_to_finish_prob[end] += 1.0
         else
-            low = Int64(floor(tval))
-            high = Int64(ceil(tval))
+            low = convert(Int64,floor(tval))
+            high = convert(Int64,ceil(tval))
             low_wt = tval - floor(tval)
             time_to_finish_prob[max(1,low+1)] += low_wt
             time_to_finish_prob[max(1,high+1)] += 1.0 - low_wt

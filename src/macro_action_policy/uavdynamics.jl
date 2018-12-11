@@ -81,13 +81,13 @@ function get_uav_dynamics_actions(model::MultiRotorUAVDynamicsModel)
 end
 
 """
-    generate_start_state(model::MultiRotorUAVDynamicsModel, rng::RNG=Base.GLOBAL_RNG) where {RNG <: AbstractRNG}
+    generate_start_state(model::MultiRotorUAVDynamicsModel, rng::RNG=Random.GLOBAL_RNG) where {RNG <: AbstractRNG}
 
 Generate a MultiRotorUAVState with a random location inside the grid and at rest
 """
-function generate_start_state(model::MultiRotorUAVDynamicsModel, rng::RNG=Base.GLOBAL_RNG) where {RNG <: AbstractRNG}
-    x = rand(rng,Uniform(-XY_LIM,XY_LIM))
-    y = rand(rng,Uniform(-XY_LIM,XY_LIM))
+function generate_start_state(model::MultiRotorUAVDynamicsModel, rng::RNG=Random.GLOBAL_RNG) where {RNG <: AbstractRNG}
+    x = rand(rng,Uniform(-model.params.scale_params.XY_LIM,model.params.scale_params.XY_LIM))
+    y = rand(rng,Uniform(-model.params.scale_params.XY_LIM,model.params.scale_params.XY_LIM))
     xdot = 0.
     ydot = 0.
 
@@ -134,11 +134,11 @@ function apply_controls(model::MultiRotorUAVDynamicsModel, state::MultiRotorUAVS
 end
 
 """
-    next_state(model::MultiRotorUAVDynamicsModel, state::MultiRotorUAVState, action::MultiRotorUAVAction, rng::RNG=Base.GLOBAL_RNG) where {RNG <: AbstractRNG}
+    next_state(model::MultiRotorUAVDynamicsModel, state::MultiRotorUAVState, action::MultiRotorUAVAction, rng::RNG=Random.GLOBAL_RNG) where {RNG <: AbstractRNG}
 
 Generate the next state by propagating the action noisily with the dynamics
 """
-function next_state(model::MultiRotorUAVDynamicsModel, state::MultiRotorUAVState, action::MultiRotorUAVAction, rng::RNG=Base.GLOBAL_RNG) where {RNG <: AbstractRNG}
+function next_state(model::MultiRotorUAVDynamicsModel, state::MultiRotorUAVState, action::MultiRotorUAVAction, rng::RNG=Random.GLOBAL_RNG) where {RNG <: AbstractRNG}
 
     # Sample acceleration noise vector    
     noiseval = rand(rng,model.noise)

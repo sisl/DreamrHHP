@@ -96,6 +96,13 @@ end
 
 
 ## POLICY SAVING AND LOADING UTILS
+"""
+    save_localapproxvi_policy_to_jld2(policy_fn::String, policy::LocalApproximationValueIterationPolicy, 
+                                           mdp::Union{MDP,POMDP}, mersenne_seed::Int)
+
+Custom saving method for storing a LocalApproximationValueIterationPolicy as a JLD2 object. It saves the individual
+components based on the fields of the object. NOTE - Can only work with load_localapproxvi_policy_from_jld2
+"""
 function save_localapproxvi_policy_to_jld2(policy_fn::String, policy::LocalApproximationValueIterationPolicy, 
                                            mdp::Union{MDP,POMDP}, mersenne_seed::Int)
 
@@ -106,6 +113,13 @@ function save_localapproxvi_policy_to_jld2(policy_fn::String, policy::LocalAppro
                     "mersenne_seed",mersenne_seed)
 end
 
+
+"""
+    load_localapproxvi_policy_from_jld2(policy_fn::String)
+
+Custom loading method for retrieving a LocalApproximationValueIterationPolicy from a JLD2 file. It loads the individual
+fields for the object. NOTE - Can only work with save_localapproxvi_policy_to_jld2
+"""
 function load_localapproxvi_policy_from_jld2(policy_fn::String)
 
     policy_interp = load(policy_fn, "interp")
@@ -116,4 +130,14 @@ function load_localapproxvi_policy_from_jld2(policy_fn::String)
 
     return LocalApproximationValueIterationPolicy(policy_interp, ordered_actions(policy_mdp), policy_mdp, policy_isgen,
                                                   policy_n_gen_samples, MersenneTwister(policy_seed))
+end
+
+function load_partialcontrolpolicy(inhor_policy_fn::String, outhor_policy_fn::String)
+
+    inhor_policy = load_localapproxvi_policy_from_jld2(inhor_policy_fn)
+    outhor_policy = load_localapproxvi_policy_from_jld2(outhor_policy_fn)
+
+    @assert inhor_policy.action_map == outhor_policy.action_map "Action Maps for in and out horizon must match!"
+
+    return PartialControlHopOnOffPolicy(inhor_policy, outhor_policy, inhor_policy.action_map)
 end
