@@ -12,11 +12,9 @@ using StaticArrays
 using Distributions
 using PDMats
 
-# For plotting
-using Cairo 
-using Gadfly
-using Colors
-using Measures
+# For saving and loading 
+using JLD2
+using FileIO
 
 # Graph planning/MPC stuff
 using Graphs
@@ -45,6 +43,9 @@ export
     MultiRotorUAVState,
     MultiRotorUAVAction,
     MultiRotorUAVDynamicsModel,
+    get_position,
+    get_speed,
+    get_uav_dynamics_actions,
     next_state,
     dynamics_cost,
     HOP_ACTION,
@@ -76,31 +77,19 @@ export
 #     get_flight_mpc_action_multirotor
 
 # # Partial Control MDP stuff
-# export
-#     ControlledHopOnStateAugmented,
-#     HopOffStateAugmented,
-#     HopOnAction,
-#     HopOffAction,
-#     HopOffMDP,
-#     ControlledMultiRotorHopOnMDP,
-#     PartialControlHopOnOffPolicy,
-#     UnconstrainedFlightMDP,
-#     hopon_policy_action,
-#     hopoff_policy_action,
-#     outhor_outdist_action,
-#     unconstrained_flight_action,
-#     terminalreward,
-#     actions,
-#     n_actions,
-#     discount,
-#     reward,
-#     generate_sr,
-#     transition,
-#     isterminal,
-#     action_index,
-#     generate_start_state,
-#     get_state_at_rest,
-#     convert_s
+export
+    ControlledHopOnStateAugmented,
+    HopOffStateAugmented,
+    HopOnAction,
+    HopOffAction,
+    HopOffMDP,
+    ControlledHopOnMDP,
+    PartialControlHopOnOffPolicy,
+    UnconstrainedFlightMDP,
+    hopon_policy_action,
+    hopoff_policy_action,
+    generate_start_state,
+    get_state_at_rest
 
 # # Parameters for partial control MDP
 # export
@@ -165,25 +154,36 @@ export
 # General utils
 export
     truncate_vel,
-    plot_car_route,
-    plot_drone_and_active_cars_epoch!,
     log2space_symmetric,
     polyspace_symmetric,
-    st_line_reward_time
+    st_line_reward_time,
+    save_localapproxvi_policy_to_jld2,
+    load_localapproxvi_policy_from_jld2
 
 
 
 include("types.jl")
 include("parameters.jl")
-include("plot_utils.jl")
 include("utils.jl")
 include("macro_action_policy/uavdynamics.jl")
-# include("macro_action_policy/partial_control_mdp.jl")
+include("macro_action_policy/partial_control_mdp.jl")
 # include("graph_plan/astar_visitor_light.jl")
 # include("graph_plan/graph_helpers.jl")
 # include("graph_plan/graph_solution.jl")
 # include("graph_plan/mpc_utils.jl")
 # include("simulators/hoponoff_singlecar_simulator.jl")
 # include("simulators/sdmc_simulator.jl")
+
+
+# Plot Utils
+# For plotting
+# using Cairo 
+# using Gadfly
+# using Colors
+# using Measures
+# export
+#     plot_car_route,
+#     plot_drone_and_active_cars_epoch!
+# include("plot_utils.jl")
 
 end # module

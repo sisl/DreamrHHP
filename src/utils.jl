@@ -29,7 +29,7 @@ function log2space_symmetric(symm_val::Float64, n::Int64, base_val::Int64=2)
     # Ensure that the value itself is positive
     @assert symm_val > 0
 
-    vals = Vector{Float64}(undef)
+    vals = Vector{Float64}(undef,0)
     idx = 1
     midpt = convert(Int64,round((n-1)/2))
 
@@ -61,7 +61,7 @@ function polyspace_symmetric(symm_val::Float64, n::Int64, exp_val::Int64=3)
     # Ensure that the value itself is positive
     @assert symm_val > 0
 
-    vals = Vector{Float64}(undef)
+    vals = Vector{Float64}(undef,0)
     idx = 1
     midpt = convert(Int64,round((n-1)/2))
 
@@ -92,4 +92,28 @@ function st_line_reward_time(dist::Float64)
     reward = FLIGHT_COEFFICIENT*dist + TIME_COEFFICIENT*timeval
     
     return reward,timeval
+end
+
+
+## POLICY SAVING AND LOADING UTILS
+function save_localapproxvi_policy_to_jld2(policy_fn::String, policy::LocalApproximationValueIterationPolicy, 
+                                           mdp::Union{MDP,POMDP}, mersenne_seed::Int)
+
+    save(policy_fn, "interp", policy.interp,
+                    "mdp", mdp,
+                    "is_mdp_generative",policy.is_mdp_generative,
+                    "n_generative_samples",policy.n_generative_samples,
+                    "mersenne_seed",mersenne_seed)
+end
+
+function load_localapproxvi_policy_from_jld2(policy_fn::String)
+
+    policy_interp = load(policy_fn, "interp")
+    policy_mdp = load(policy_fn, "mdp")
+    policy_isgen = load(policy_fn,"is_mdp_generative")
+    policy_n_gen_samples = load(policy_fn,"n_generative_samples")
+    policy_seed = load(policy_fn, "mersenne_seed")
+
+    return LocalApproximationValueIterationPolicy(policy_interp, ordered_actions(policy_mdp), policy_mdp, policy_isgen,
+                                                  policy_n_gen_samples, MersenneTwister(policy_seed))
 end

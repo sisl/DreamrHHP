@@ -10,5 +10,8 @@ sandbox_*
 
 # MacOS stuff
 *.DS_Store
+
+# Policy files
 *.jld
+*.jld2
 

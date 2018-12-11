@@ -12,6 +12,14 @@ struct MultiRotorUAVState <: UAVState
     ydot::Float64
 end
 
+function get_position(state::MultiRotorUAVState)
+    return Point(state.x, state.y)
+end
+
+function get_speed(state::MultiRotorUAVState)
+    return sqrt(state.xdot^2 + state.ydot^2)
+end 
+
 """
 Represents control action for simple 2D multirotor, with acceleration in each direction.
 """
@@ -43,14 +51,33 @@ and sig is the standard deviation along each axis (sig_xy) is vector of standard
 """
 function MultiRotorUAVDynamicsModel(t::Float64, sig::Float64, params::Parameters)
     # Generate diagonal covariance matrix
-    noise = Distributions.MvNormal([sig^2,sig^2])
+    noise = Distributions.MvNormal([sig,sig])
     return MultiRotorUAVDynamicsModel(t, noise, params)
 end
 
 function MultiRotorUAVDynamicsModel(t::Float64, sig_xy::StaticVector{2,Float64}, params::Parameters)
     # Generate diagonal covariance matrix
-    noise = Distributions.MvNormal([sig[1]^2,sig[2]^2])
+    noise = Distributions.MvNormal([sig[1],sig[2]])
     return MultiRotorUAVDynamicsModel(t, noise, params)
+end
+
+"""
+    get_uav_dynamics_actions(model::MultiRotorUAVDynamicsModel)
+
+Compiles a vector of all multirotor acceleration actions within limits, based on the resolution parameters
+"""
+function get_uav_dynamics_actions(model::MultiRotorUAVDynamicsModel)
+
+    multirotor_actions = Vector{MultiRotorUAVAction}(undef,0)
+    acc_vals = range(-model.params.scale_params.ACCELERATION_LIM,stop=model.params.scale_params.ACCELERATION_LIM,length=model.params.scale_params.ACCELERATION_NUMVALS)
+
+    for xddot in acc_vals
+        for yddot in acc_vals
+            push!(multirotor_actions,MultiRotorUAVAction(xddot, yddot))
+        end
+    end
+
+    return multirotor_actions
 end
 
 """

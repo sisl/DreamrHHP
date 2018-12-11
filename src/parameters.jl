@@ -14,7 +14,6 @@ struct ScaleParameters
     XYDOT_LIM::Float64
     XYDOT_AXISVALS::Int
     XYDOT_HOP_THRESH::Float64
-    HORIZON_LIM::Int
     ACC_NOISE_STD::Float64
     MAX_DRONE_SPEED::Float64
     MAX_CAR_SPEED::Float64
@@ -24,6 +23,7 @@ end
 
 struct SimTimeParameters
     MDP_TIMESTEP::Float64
+    HORIZON_LIM::Int
     WAYPT_TIME_CHANGE_THRESHOLD::Float64
     MAX_REPLAN_TIMESTEP::Float64
     CAR_TIME_STD::Float64
@@ -62,7 +62,6 @@ function parse_scale(filename::AbstractString)
                            params_key["XYDOT_LIM"],
                            params_key["XYDOT_AXISVALS"],
                            params_key["XYDOT_HOP_THRESH"],
-                           params_key["HORIZON_LIM"],
                            params_key["ACC_NOISE_STD"],
                            params_key["MAX_DRONE_SPEED"],
                            params_key["MAX_CAR_SPEED"],
@@ -76,10 +75,12 @@ function parse_simtime(filename::AbstractString)
     params_key = TOML.parsefile(filename)
 
     return SimTimeParameters(params_key["MDP_TIMESTEP"],
+                             params_key["HORIZON_LIM"],
                              get(params_key, "WAYPT_TIME_CHANGE_THRESHOLD", params_key["MDP_TIMESTEP"]/2.0),
                              params_key["MAX_REPLAN_TIMESTEP"],
                              get(params_key, "CAR_TIME_STD", params_key["MDP_TIMESTEP"]/2.0),
                              params_key["DELAY_SPEEDUP_PROB"],
+                             get(params_key, "MAX_DELAY_SPEEDUP", params_key["MDP_TIMESTEP"]*2.0),
                              params_key["MC_TIME_NUMSAMPLES"])
 end
 
