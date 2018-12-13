@@ -41,13 +41,11 @@ Car(idx_range::Vector{Int}) = Car(idx_range, 0, 1, true)
 
 
 # Any physical characteristics of the drone that are not updated during the problem
-struct Drone{UDM < :UAVDynamicsModel}
+struct Drone
     idx::Int
     max_speed::Float64
     max_distance::Float64
     max_energy::Float64
 end
 
-Drone() = Drone(0,MAX_DRONE_SPEED,Inf,Inf)
-Drone(_idx::Int) = Drone(_idx, MAX_DRONE_SPEED, Inf, Inf)
 Drone(_idx::Int,_max_speed::Float64) = Drone(_idx, _max_speed, Inf, Inf)

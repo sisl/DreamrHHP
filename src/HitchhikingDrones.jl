@@ -155,7 +155,7 @@ export
     truncate_vel,
     log2space_symmetric,
     polyspace_symmetric,
-    st_line_reward_time,
+    bang_bang_reward_time,
     save_localapproxvi_policy_to_jld2,
     load_localapproxvi_policy_from_jld2,
     load_partialcontrolpolicy
@@ -164,8 +164,8 @@ export
 
 include("types.jl")
 include("parameters.jl")
-include("utils.jl")
 include("macro_action_policy/uavdynamics.jl")
+include("utils.jl")
 include("macro_action_policy/partial_control_mdp.jl")
 include("graph_plan/astar_visitor_light.jl")
 # include("graph_plan/graph_helpers.jl")

@@ -61,7 +61,7 @@ function parse_scale(filename::AbstractString)
                            params_key["XYDOT_AXISVALS"],
                            params_key["XYDOT_HOP_THRESH"],
                            params_key["ACC_NOISE_STD"],
-                           params_key["MAX_DRONE_SPEED"],
+                           get(params_key, "MAX_DRONE_SPEED", params_key["XYDOT_LIM"]*sqrt(2)),
                            params_key["MAX_CAR_SPEED"],
                            params_key["VALID_FLIGHT_EDGE_DIST_RATIO"],
                            params_key["MC_GENERATIVE_NUMSAMPLES"])

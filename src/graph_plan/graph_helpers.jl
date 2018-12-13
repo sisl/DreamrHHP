@@ -48,8 +48,7 @@ Nominal check for whether the distance between vertices is less than a maximum f
 maximum possible straight line distance the agent can traverse in the remaining time.
 """
 function is_valid_flight_edge(u::CarDroneVertex, v::CarDroneVertex, d::Drone, params::Params)
-    max_speed = params.scale_params.XYDOT_LIM*sqrt(2)
-    return max_speed*(v.time_stamp - u.time_stamp) > 
+    return d.max_speed*(v.time_stamp - u.time_stamp) > 
            point_dist(u.pos, v.pos)*params.scale_params.VALID_FLIGHT_EDGE_DIST_RATIO
 end
 
@@ -57,9 +56,15 @@ function coast_edge_cost(u::CarDroneVertex, v::CarDroneVertex, params::Params)
     return params.cost_params.TIME_COEFFICIENT*(v.time_stamp - u.time_stamp)
 end
 
-# Nominal flight edge cost when pc policy not used
+"""
+    flight_edge_cost_nominal(u::CarDroneVertex, v::CarDroneVertex, udm::UDM, 
+                             d::Drone, params::Params, energy_time_alpha::Float64=0.5) where {UDM <: UAVDynamicsModel
+
+Compute the cost for nominally traversing a flight edge. If time constrained, use the time difference and the distance cost.
+If time unconstrained, use time from bang-bang strategy.
+"""
 function flight_edge_cost_nominal(u::CarDroneVertex, v::CarDroneVertex, udm::UDM, 
-                                  d::Drone, params::Params, energy_time_alpha::Float64=0.5) where {UDM <: UAVDynamicsModel}
+                                  params::Params, energy_time_alpha::Float64=0.5) where {UDM <: UAVDynamicsModel}
     dist = point_dist(u.pos, v.pos)
     if v.time_stamp < Inf
         cost = (1.0 - energy_time_alpha)*params.cost_params.FLIGHT_COEFFICIENT*dist +
@@ -67,17 +72,17 @@ function flight_edge_cost_nominal(u::CarDroneVertex, v::CarDroneVertex, udm::UDM
     else
         rel_pos = Point(u.pos.x - v.pos.x, u.pos.y - v.pos.y)
         temp_start_state = get_state_at_rest(udm, rel_pos)
-        (rew, tval) = st_line_reward(dist, temp_start_state, params)
+        (rew, tval) = bang_bang_reward_time(dist, temp_start_state, params)
         cost = -rew
     end
     return cost
 end
 
 
-# ASSUME this is inside distance limits
+
 function flight_edge_cost_valuefn(udm::UDM, hopon_policy::PartialControlHopOnOffPolicy,
                                   flight_policy::LocalApproximationValueIterationPolicy,
-                                  u::CarDroneVertex, v::CarDroneVertex, d::Drone) where {UDM <: UAVDynamicsModel}
+                                  u::CarDroneVertex, v::CarDroneVertex, params::Params) where {UDM <: UAVDynamicsModel}
 
     rel_pos = Point(u.pos.x - v.pos.x, u.pos.y - v.pos.y)
     rel_state = get_state_at_rest(udm, rel_pos)
@@ -85,17 +90,17 @@ function flight_edge_cost_valuefn(udm::UDM, hopon_policy::PartialControlHopOnOff
     cost = 0.0
 
     if v.time_stamp == Inf
-        cost += -value(flight_policy, rel_state) + FLIGHT_REACH_REWARD
+        cost += -value(flight_policy, rel_state) + params.cost_params.FLIGHT_REACH_REWARD
     else
-        horizon = convert(Int,round((v.time_stamp-u.time_stamp)/MDP_TIMESTEP))
-        if horizon <= HORIZON_LIM
+        horizon = convert(Int,round((v.time_stamp-u.time_stamp)/params.time_params.MDP_TIMESTEP))
+        if horizon <= params.time_params.HORIZON_LIM
             hopon_state = ControlledHopOnStateAugmented(rel_state,horizon)
             cost += -value(hopon_policy.in_horizon_policy,hopon_state)
             #end
         else
             # Use outhorizon cost but also additional cost for time and/or distance
-            addtn_time_cost = TIME_COEFFICIENT*MDP_TIMESTEP*(horizon - HORIZON_LIM)
-            hopon_outhor_state = ControlledHopOnStateAugmented(rel_state,HORIZON_LIM)
+            addtn_time_cost = params.cost_params,TIME_COEFFICIENT*params.time_params.MDP_TIMESTEP*(horizon - params.time_params.HORIZON_LIM)
+            hopon_outhor_state = ControlledHopOnStateAugmented(rel_state,params.time_params.HORIZON_LIM)
             cost += -value(hopon_policy.in_horizon_policy, hopon_outhor_state) + addtn_time_cost
         end
     end

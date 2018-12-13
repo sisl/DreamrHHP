@@ -83,7 +83,7 @@ end
 Util for computing trivial straight line distance and time to reach goal
 using bang-off-bang strategy
 """
-function st_line_reward_time(dist::Float64, uav_state::US, params::Parameters) where {US <: UAVState}
+function bang_bang_reward_time(dist::Float64, uav_state::US, params::Parameters) where {US <: UAVState}
 
     uav_speed = get_speed(uav_state)
     max_speed = params.scale_params.XYDOT_LIM*sqrt(2)
