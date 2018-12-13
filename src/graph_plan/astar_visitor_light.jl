@@ -1,4 +1,9 @@
-mutable struct AStarStates{D<:Number,Heap,H}
+## Modeled on Graphs.jl
+
+"""
+Data structure for storing all information relevant to an A-Star Solution on a graph
+"""
+mutable struct AStarStates{D<:Number, Heap, H}
     parent_indices::Vector{Int}
     dists::Vector{D}
     colormap::Vector{Int}
@@ -6,17 +11,21 @@ mutable struct AStarStates{D<:Number,Heap,H}
     hmap::Vector{H}
 end
 
+"""
+Data structure for heap entry associated with each expanded vertex
+"""
 struct AStarHEntry{D <: Number}
     vIdx::Int
     gvalue::D
     fvalue::D
 end
 
-function Base.isless(e1::AStarHEntry, e2::AStarHEntry)
-    return e1.fvalue < e2.fvalue
-end
+# function Base.isless(e1::AStarHEntry, e2::AStarHEntry)
+#     return e1.fvalue < e2.fvalue
+# end
 
-# create Astar states
+<(e1::AStarHEntry, e2::AStarHEntry) = e1.fvalue < e2.fvalue
+
 
 function create_astar_states(g::AbstractGraph{V}, ::Type{D}) where {V, D <: Number}
     n = num_vertices(g)
@@ -35,6 +44,10 @@ function set_source!(state::AStarStates{D}, g::AbstractGraph{V}, s::Int) where {
     state.colormap[s] = 2
 end
 
+"""
+Execute expand operation on the chosen node, while implicitly generating its neighbors based on a 
+visitor method, and populating `neighbors` with the neighboring vertices
+"""
 function process_neighbors_implicit!(
     state::AStarStates{D,Heap,H},
     graph::AbstractGraph{V},
@@ -43,10 +56,10 @@ function process_neighbors_implicit!(
     u::Int, du::D, visitor::AbstractDijkstraVisitor,
     heuristic::Function) where {V, D <: Number, Heap, H}
 
-    dv::D = zero(D)
+    dv = zero(D)
 
     for iv in neighbors
-        v_color::Int = state.colormap[iv]
+        v_color = state.colormap[iv]
 
         if v_color == 0
             state.dists[iv] = dv = du + edge_wt_fn(graph.vertices[u], graph.vertices[iv])
@@ -99,12 +112,12 @@ function astar_light_shortest_path_implicit!(
 
         # pick next vertex to include
         entry = pop!(state.heap)
-        ui::Int = entry.vIdx
-        du::D = entry.gvalue
+        ui = entry.vIdx
+        du = entry.gvalue
 
         state.colormap[ui] = 2
 
-        nbrs = Vector{Int}()
+        nbrs = Vector{Int}(undef,0)
 
         if !Graphs.include_vertex!(visitor, graph.vertices[state.parent_indices[ui]], graph.vertices[ui], du, nbrs)
             return state

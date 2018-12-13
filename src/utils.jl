@@ -81,15 +81,21 @@ end
 
 """
 Util for computing trivial straight line distance and time to reach goal
+using bang-off-bang strategy
 """
-function st_line_reward_time(dist::Float64)
+function st_line_reward_time(dist::Float64, uav_state::US, params::Parameters) where {US <: UAVState}
 
-    # For speedup and slow down - 2 * 1/2 * at^2
-    acc_dist = ACCELERATION_LIM*(XYDOT_LIM/ACCELERATION_LIM)^2
+    uav_speed = get_speed(uav_state)
+    max_speed = params.scale_params.XYDOT_LIM*sqrt(2)
+    max_acc = params.scale_params.ACCELERATION_LIM*sqrt(2)
+    
+    speedup_dist = 0.5*params.scale_params.ACCELERATION_LIM* 
+                   ((max_speed - uav_speed)/max_acc)^2
+    slowdown_dist = 0.5*params.scale_params.ACCELERATION_LIM* (params.scale_params.XYDOT_LIM/max_acc)^2
 
-    timeval = 2*(XYDOT_LIM/ACCELERATION_LIM) + (dist-acc_dist)/XYDOT_LIM
+    timeval = ((max_speed - uav_speed)+ max_speed)/mas_acc + (dist-speedup_dist-slowdown_dist)/max_speed
 
-    reward = FLIGHT_COEFFICIENT*dist + TIME_COEFFICIENT*timeval
+    reward = params.cost_params.FLIGHT_COEFFICIENT*dist + params.cost_params.TIME_COEFFICIENT*timeval
     
     return reward,timeval
 end

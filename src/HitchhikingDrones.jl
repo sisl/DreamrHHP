@@ -54,11 +54,11 @@ export
     HOPOFF
 
 
-# # Graph Planner components
-# export
+# Graph Planner components
+export
 #     remove_last_vertex,
-#     astar_shortest_path,
-#     astar_light_shortest_path_implicit,
+    astar_shortest_path,
+    astar_light_shortest_path_implicit
 #     SimpleVListGraph,
 #     CarDroneVertex,
 #     is_valid_flight_edge,
@@ -167,7 +167,7 @@ include("parameters.jl")
 include("utils.jl")
 include("macro_action_policy/uavdynamics.jl")
 include("macro_action_policy/partial_control_mdp.jl")
-# include("graph_plan/astar_visitor_light.jl")
+include("graph_plan/astar_visitor_light.jl")
 # include("graph_plan/graph_helpers.jl")
 # include("graph_plan/graph_solution.jl")
 # include("graph_plan/mpc_utils.jl")

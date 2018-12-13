@@ -1,10 +1,9 @@
+"""
+Custom graph structure which only has a list of vertices; edges generated implicitly.
+"""
 mutable struct SimpleVListGraph{V} <: AbstractGraph{V,Edge{V}}
     vertices::Vector{V}
 end
-
-# function SimpleVListGraph(verts::Vector{V}) where V
-#     return SimpleVListGraph(verts)
-# end
 
 function Graphs.add_vertex!(g::SimpleVListGraph{V}, v::V) where V
     push!(g.vertices, v)
@@ -20,8 +19,10 @@ function remove_last_vertex!(g::SimpleVListGraph{V}) where V
 end
 
 
-# CarDroneVertex for drone flight waypoints
-# Will typically just be the start and goal
+"""
+Data structure representing a vertex of the layer 1 graph. Has all the information to represent either a
+car's waypoint or the drone's current position.
+"""
 mutable struct CarDroneVertex
     idx::Int
     pos::Point
@@ -38,29 +39,36 @@ function CarDroneVertex(idx::Int, pos::Point, time_stamp::Float64, is_car::Bool,
 end
 
 
-function Graphs.vertex_index(v::CarDroneVertex, g::SimpleVListGraph{CarDroneVertex})
-    return v.idx
+Graphs.vertex_index(v::CarDroneVertex, g::SimpleVListGraph{CarDroneVertex}) = v.idx
+
+"""
+    is_valid_flight_edge(u::CarDroneVertex, v::CarDroneVertex, d::Drone, params::Params)
+
+Nominal check for whether the distance between vertices is less than a maximum fraction of the
+maximum possible straight line distance the agent can traverse in the remaining time.
+"""
+function is_valid_flight_edge(u::CarDroneVertex, v::CarDroneVertex, d::Drone, params::Params)
+    max_speed = params.scale_params.XYDOT_LIM*sqrt(2)
+    return max_speed*(v.time_stamp - u.time_stamp) > 
+           point_dist(u.pos, v.pos)*params.scale_params.VALID_FLIGHT_EDGE_DIST_RATIO
 end
 
-# Can drone even make the flight edge in time
-function is_valid_flight_edge(u::CarDroneVertex, v::CarDroneVertex, d::Drone)
-    max_axis_dist = max(abs(u.pos.x - v.pos.x),abs(u.pos.y - v.pos.y))
-    return XYDOT_LIM*(v.time_stamp - u.time_stamp) > max_axis_dist*VALID_FLIGHT_EDGE_DIST_RATIO
-end
-
-function coast_edge_cost(u::CarDroneVertex, v::CarDroneVertex)
-    return TIME_COEFFICIENT*(v.time_stamp - u.time_stamp)
+function coast_edge_cost(u::CarDroneVertex, v::CarDroneVertex, params::Params)
+    return params.cost_params.TIME_COEFFICIENT*(v.time_stamp - u.time_stamp)
 end
 
 # Nominal flight edge cost when pc policy not used
-function flight_edge_cost_nominal(u::CarDroneVertex, v::CarDroneVertex, d::Drone, energy_time_alpha::Float64=0.5)
-    dist::Float64 = point_dist(u.pos, v.pos)
-    cost::Float64 = (1.0 - energy_time_alpha)*FLIGHT_COEFFICIENT*dist
+function flight_edge_cost_nominal(u::CarDroneVertex, v::CarDroneVertex, udm::UDM, 
+                                  d::Drone, params::Params, energy_time_alpha::Float64=0.5) where {UDM <: UAVDynamicsModel}
+    dist = point_dist(u.pos, v.pos)
     if v.time_stamp < Inf
-        cost += energy_time_alpha*TIME_COEFFICIENT*(v.time_stamp - u.time_stamp)
+        cost = (1.0 - energy_time_alpha)*params.cost_params.FLIGHT_COEFFICIENT*dist +
+               energy_time_alpha*params.cost_params.TIME_COEFFICIENT*(v.time_stamp - u.time_stamp)
     else
-        # TODO - Is this right????
-        cost += energy_time_alpha*TIME_COEFFICIENT*(dist*1.25/d.max_speed)
+        rel_pos = Point(u.pos.x - v.pos.x, u.pos.y - v.pos.y)
+        temp_start_state = get_state_at_rest(udm, rel_pos)
+        (rew, tval) = st_line_reward(dist, temp_start_state, params)
+        cost = -rew
     end
     return cost
 end
