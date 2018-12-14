@@ -8,6 +8,7 @@ using Statistics
 
 # Common non-stdlib requirements
 using DataStructures
+using LinearAlgebra
 using StaticArrays
 using Distributions
 using PDMats
@@ -56,25 +57,25 @@ export
 
 # Graph Planner components
 export
-#     remove_last_vertex,
+    remove_last_vertex,
     astar_shortest_path,
-    astar_light_shortest_path_implicit
-#     SimpleVListGraph,
-#     CarDroneVertex,
-#     is_valid_flight_edge,
-#     coast_edge_cost,
-#     flight_edge_cost_nominal,
-#     flight_edge_cost_valuefn,
-#     GraphSolution,
-#     setup_graph,
-#     update_cars_with_epoch,
-#     add_drone_vertex,
-#     add_new_start,
-#     update_next_start,
-#     revert_new_start,
-#     plan_from_next_start,
-#     get_future_macro_actions_values,
-#     get_flight_mpc_action_multirotor
+    astar_light_shortest_path_implicit,
+    SimpleVListGraph,
+    CarDroneVertex,
+    is_valid_flight_edge,
+    coast_edge_cost,
+    flight_edge_cost_nominal,
+    flight_edge_cost_valuefn,
+    GraphSolution,
+    setup_graph,
+    update_cars_with_epoch,
+    add_drone_vertex,
+    add_new_start,
+    update_next_start,
+    revert_new_start,
+    plan_from_next_start,
+    get_future_macro_actions_values,
+    get_flight_mpc_action_multirotor
 
 # # Partial Control MDP stuff
 export
@@ -90,31 +91,6 @@ export
     hopoff_policy_action,
     generate_start_state,
     get_state_at_rest
-
-# # Parameters for partial control MDP
-# export
-#     XY_LIM,
-#     XYDOT_LIM,
-#     ACCELERATION_LIM,
-#     ACCELERATION_NUMVALS,
-#     HORIZON_LIM,
-#     EPSILON,
-#     XY_AXISVALS,
-#     XYDOT_AXISVALS,
-#     XYDOT_HOP_THRESH,
-#     MDP_TIMESTEP,
-#     ACC_NOISE_STD,
-#     CONTROL_TRANSFER_PENALTY,
-#     HOP_DISTANCE_THRESHOLD,
-#     FLIGHT_COEFFICIENT,
-#     TIME_COEFFICIENT,
-#     HOVER_COEFFICIENT,
-#     NO_HOP_PENALTY,
-#     MC_GENERATIVE_NUMSAMPLES,
-#     MC_TIME_NUMSAMPLES,
-#     MAX_DRONE_SPEED,
-#     MAX_CAR_SPEED,
-#     MAX_REPLAN_TIMESTEP
 
 # For parameters
 export
@@ -168,9 +144,9 @@ include("macro_action_policy/uavdynamics.jl")
 include("utils.jl")
 include("macro_action_policy/partial_control_mdp.jl")
 include("graph_plan/astar_visitor_light.jl")
-# include("graph_plan/graph_helpers.jl")
-# include("graph_plan/graph_solution.jl")
-# include("graph_plan/mpc_utils.jl")
+include("graph_plan/graph_helpers.jl")
+include("graph_plan/graph_solution.jl")
+include("graph_plan/mpc_utils.jl")
 include("simulators/hoponoff_singlecar_simulator.jl")
 include("simulators/sdmc_simulator.jl")
 

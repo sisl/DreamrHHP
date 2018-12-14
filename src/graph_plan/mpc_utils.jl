@@ -1,6 +1,7 @@
 function get_flight_mpc_action_multirotor(curr_state::MultiRotorUAVState, 
                                           next_vertex::CarDroneVertex, 
-                                          curr_fin_horizon::Int64)
+                                          curr_fin_horizon::Int64,
+                                          params::Parameters)
 
     # MPC timesteps depends on finish horizon
     N = curr_fin_horizon > 20 ? 20 : curr_fin_horizon
@@ -18,39 +19,40 @@ function get_flight_mpc_action_multirotor(curr_state::MultiRotorUAVState,
     @variable(m, uav_state[1:4*(N+1)])
 
     for i in 1:N+1
-        setlowerbound(uav_state[4*(i-1)+3], -XYDOT_LIM)
-        setlowerbound(uav_state[4*(i-1)+4], -XYDOT_LIM)
-        setupperbound(uav_state[4*(i-1)+3], XYDOT_LIM)
-        setupperbound(uav_state[4*(i-1)+4], XYDOT_LIM)
+        setlowerbound(uav_state[4*(i-1)+3], -params.scale_params.XYDOT_LIM)
+        setlowerbound(uav_state[4*(i-1)+4], -params.scale_params.XYDOT_LIM)
+        setupperbound(uav_state[4*(i-1)+3], params.scale_params.XYDOT_LIM)
+        setupperbound(uav_state[4*(i-1)+4], params.scale_params.XYDOT_LIM)
     end
 
     # Set start state
     @constraint(m, uav_state[1:4] .== curr_vect)
 
     # Set end velocity
-    @NLconstraint(m, abs(uav_state[4*N+3]^2) <= XYDOT_HOP_THRESH/sqrt(2))
-    @NLconstraint(m, abs(uav_state[4*N+4]^2) <= XYDOT_HOP_THRESH/sqrt(2))
+    @NLconstraint(m, abs(uav_state[4*N+3]^2) <= params.scale_params.XYDOT_HOP_THRESH/sqrt(2))
+    @NLconstraint(m, abs(uav_state[4*N+4]^2) <= params.scale_params.XYDOT_HOP_THRESH/sqrt(2))
 
     # Define control actions
-    @variable(m, -ACCELERATION_LIM <= acc[1:2*N] <= ACCELERATION_LIM)
+    @variable(m, -params.scale_params.ACCELERATION_LIM <= acc[1:2*N] <= params.scale_params.ACCELERATION_LIM)
 
     # Setup objective function
-    @NLobjective(m, Min, sum(FLIGHT_COEFFICIENT*sqrt( (curr_goal_pos[1] - uav_state[4*(i-1)+1])^2 + 
+    @NLobjective(m, Min, sum(params.cost_params.FLIGHT_COEFFICIENT*sqrt( (curr_goal_pos[1] - uav_state[4*(i-1)+1])^2 + 
         (curr_goal_pos[2] - uav_state[4*(i-1)+2])^2) 
-        + HOVER_COEFFICIENT*( sqrt(uav_state[4*(i-1) + 3]^2 + uav_state[4*(i-1) + 4]^2)  < MDP_TIMESTEP*EPSILON)
+        + params.cost_params.HOVER_COEFFICIENT*
+        ( sqrt(uav_state[4*(i-1) + 3]^2 + uav_state[4*(i-1) + 4]^2) < params.cost_params.MDP_TIMESTEP*params.scale_params.EPSILON)
          for i = 1:N+1))
 
     # Control Constraint
     for i in 1:N
         # x_new = x_old + xdot_old*t + 0.5*a*t^2
-        @constraint(m, uav_state[4*i+1]-uav_state[4*(i-1)+1] - (uav_state[4*(i-1)+3]*MDP_TIMESTEP + 
-            0.5*acc[2*(i-1)+1]*MDP_TIMESTEP^2) == 0)
-        @constraint(m, uav_state[4*i+2]-uav_state[4*(i-1)+2] - (uav_state[4*(i-1)+4]*MDP_TIMESTEP + 
-            0.5*acc[2*i]*MDP_TIMESTEP^2) == 0)
+        @constraint(m, uav_state[4*i+1]-uav_state[4*(i-1)+1] - (uav_state[4*(i-1)+3]*params.time_params.MDP_TIMESTEP + 
+            0.5*acc[2*(i-1)+1]*params.time_params.MDP_TIMESTEP^2) == 0)
+        @constraint(m, uav_state[4*i+2]-uav_state[4*(i-1)+2] - (uav_state[4*(i-1)+4]*params.time_params.MDP_TIMESTEP + 
+            0.5*acc[2*i]*params.time_params.MDP_TIMESTEP^2) == 0)
 
         # xdot_new = xdot_old + a*t
-        @constraint(m, uav_state[4*i+3]-uav_state[4*(i-1)+3] - acc[2*(i-1)+1]*MDP_TIMESTEP == 0)
-        @constraint(m, uav_state[4*i+4]-uav_state[4*(i-1)+4] - acc[2*i]*MDP_TIMESTEP == 0)
+        @constraint(m, uav_state[4*i+3]-uav_state[4*(i-1)+3] - acc[2*(i-1)+1]*params.time_params.MDP_TIMESTEP == 0)
+        @constraint(m, uav_state[4*i+4]-uav_state[4*(i-1)+4] - acc[2*i]*params.time_params.MDP_TIMESTEP == 0)
     end
 
     status = JuMP.solve(m)
