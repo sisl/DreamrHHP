@@ -2,6 +2,7 @@ using StaticArrays
 using JSON
 using HitchhikingDrones
 using Logging
+using Random
 
 ## Define Mersenne Twister for reproducibility
 rng = MersenneTwister(15)
