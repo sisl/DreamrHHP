@@ -150,16 +150,18 @@ include("graph_plan/mpc_utils.jl")
 include("simulators/hoponoff_singlecar_simulator.jl")
 include("simulators/sdmc_simulator.jl")
 
+# Sandbox - for testing script utils
+# include("../data/grid_data_generator.jl")
 
 # Plot Utils
 # For plotting
-# using Cairo 
-# using Gadfly
-# using Colors
-# using Measures
-# export
-#     plot_car_route,
-#     plot_drone_and_active_cars_epoch!
-# include("plot_utils.jl")
+using Cairo 
+using Gadfly
+using Colors
+using Measures
+export
+    plot_car_route,
+    plot_drone_and_active_cars_epoch!
+include("plot_utils.jl")
 
 end # module
