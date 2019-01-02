@@ -145,5 +145,5 @@ function load_partialcontrolpolicy(inhor_policy_fn::String, outhor_policy_fn::St
 
     @assert inhor_policy.action_map == outhor_policy.action_map "Action Maps for in and out horizon must match!"
 
-    return PartialControlHopOnOffPolicy(inhor_policy, outhor_policy, inhor_policy.action_map)
+    return PartialControlHopOnOffPolicy{MultiRotorUAVAction}(inhor_policy, outhor_policy, inhor_policy.action_map)
 end

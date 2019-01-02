@@ -50,8 +50,8 @@ nohor_gridverts = vertices(no_horizon_hopongrid)
 
 # Load preabort policy
 @info "Loading pre-abort policies"
-preabort_filename_inhor = string(policy_name,"-",poly_or_exp,"-preabort-inhor.jld2")
-preabort_filename_outhor = string(policy_name,"-",poly_or_exp,"-preabort-outhor.jld2")
+preabort_filename_inhor = string(policy_name,"-alpha",energy_time_alpha,"-",poly_or_exp,"-preabort-inhor.jld2")
+preabort_filename_outhor = string(policy_name,"-alpha",energy_time_alpha,"-",poly_or_exp,"-preabort-outhor.jld2")
 
 approx_hopon_inhorizon_policy = load_localapproxvi_policy_from_jld2(preabort_filename_inhor)
 approx_hopon_outhorizon_policy = load_localapproxvi_policy_from_jld2(preabort_filename_outhor)
@@ -90,7 +90,7 @@ approx_hopon_inhorizon_solver_reinit = LocalApproximationValueIterationSolver(in
                                                                        is_mdp_generative=true, n_generative_samples=params.scale_params.MC_GENERATIVE_NUMSAMPLES)
 approx_hopon_inhorizon_policy_reinit = solve(approx_hopon_inhorizon_solver_reinit, pc_hopon_mdp)
 
-policy_filename = string(policy_name,"-",poly_or_exp,"-abort_thresh-",abort_risk_threshold,"-inhor.jld2")
+policy_filename = string(policy_name,"-alpha",energy_time_alpha,"-",poly_or_exp,"-abort_thresh-",abort_risk_threshold,"-inhor.jld2")
 
 
 ## Now save new in-horizon policy (as you are not computing a new out-horizon policy)

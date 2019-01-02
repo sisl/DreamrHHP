@@ -60,3 +60,5 @@ struct Drone
 end
 
 Drone(idx::Int,max_speed::Float64) = Drone(idx, max_speed, Inf, Inf)
+
+Drone(params::Parameters) = Drone(0, params.scale_params.MAX_DRONE_SPEED, Inf, Inf)

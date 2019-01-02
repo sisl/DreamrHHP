@@ -65,7 +65,7 @@ function step_sim(sdmc::SDMCSimulator, action::SDMCAction)
     epoch_info_dict = sdmc.epochs_dict[string(sdmc.epoch_counter)]
     epoch_car_info = epoch_info_dict["car-info"]
 
-    reward = -params.cost_params*TIME_COEFFICIENT*params.time_params*MDP_TIMESTEP
+    reward = -sdmc.params.cost_params.TIME_COEFFICIENT*sdmc.params.time_params.MDP_TIMESTEP
 
     # If UAV action, simulate and add reward and return car dict as additional info (OpenAIGYM style)
     if typeof(action) <: UAVAction
@@ -99,7 +99,7 @@ function step_sim(sdmc::SDMCSimulator, action::SDMCAction)
                 
                 dist = min(point_dist(car_pos, uav_pos), point_dist(prev_car_pos,uav_pos), point_dist(next_car_pos,uav_pos))
 
-                if dist < sdmc.params.scale_params*HOP_DISTANCE_THRESHOLD*sdmc.params.time_params*MDP_TIMESTEP && 
+                if dist < 2.0*sdmc.params.scale_params.HOP_DISTANCE_THRESHOLD*sdmc.params.time_params.MDP_TIMESTEP && 
                    uav_speed < sdmc.params.scale_params.XYDOT_HOP_THRESH
                     @warn "Successful hop on to $(hopon_car_id) at epoch $(sdmc.epoch_counter)"
                     curr_car_pos = Point(epoch_car_info[hopon_car_id]["pos"][1],epoch_car_info[hopon_car_id]["pos"][2])
@@ -108,10 +108,10 @@ function step_sim(sdmc::SDMCSimulator, action::SDMCAction)
                     sdmc.state.car_id = hopon_car_id
                 else
                     @warn "Too far from car to hop on!"
-                    # println("PREV CAR POS - ",prev_car_pos)
-                    # println("CAR POS - ",car_pos)
-                    # println("NEXT CAR POS - ",next_car_pos)
-                    # println("Distance is ",dist," and speed is ",curr_speed)
+                    println("PREV CAR POS - ",prev_car_pos)
+                    println("CAR POS - ",car_pos)
+                    println("NEXT CAR POS - ",next_car_pos)
+                    println("Distance is ",dist," and speed is ",uav_speed)
                 end
             end
         elseif action[1] == STAY
@@ -147,8 +147,8 @@ function step_sim(sdmc::SDMCSimulator, action::SDMCAction)
 
     # Check if at goal
     if point_dist(get_position(sdmc.state.uav_state), sdmc.goal_pos) < 
-        sdmc.params.time_params*MDP_TIMESTEP*sdmc.params.scale_params*HOP_DISTANCE_THRESHOLD && 
-        curr_speed < sdmc.params.scale_params*XYDOT_HOP_THRESH
+        sdmc.params.time_params.MDP_TIMESTEP*sdmc.params.scale_params.HOP_DISTANCE_THRESHOLD && 
+        uav_speed < sdmc.params.scale_params.XYDOT_HOP_THRESH
         is_terminal = true
     end
 

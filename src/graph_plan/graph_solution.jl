@@ -226,7 +226,7 @@ function edge_weight_function_recompute(flight_edge_wt_fn::Function, gs::GraphSo
                                         u::CarDroneVertex, v::CarDroneVertex)
     if u.is_car && v.is_car && u.car_id == v.car_id
         # Coasting edge
-        return coast_edge_cost(u,v)
+        return coast_edge_cost(u,v, gs.params)
     elseif !v.is_car
         # Flight edge to drone vertex 
         return flight_edge_cost_nominal(u,v,gs.drone)
@@ -244,7 +244,7 @@ Lookup the edge weight function from the cache instead of recomputing from scrat
 """
 function edge_weight_function_lookup(flight_edge_wt_fn::Function, gs::GraphSolution, u::CarDroneVertex, v::CarDroneVertex)
     if u.is_car && v.is_car && u.car_id == v.car_id  
-        edge_weight_val = coast_edge_cost(u,v)
+        edge_weight_val = coast_edge_cost(u,v, gs.params)
     else
         # Flight edge from value function - either constrained or unconstrained
         edge_weight_val = get(gs.flight_edge_wts, (u,v), Inf)
@@ -336,12 +336,12 @@ function plan_from_next_start(gs::GraphSolution, flight_edge_wt_fn::Function, va
     empty!(gs.curr_soln_idx_path)
 
     # Walk back path to current start
-    unshift!(gs.curr_soln_idx_path, gs.goal_idx)
+    pushfirst!(gs.curr_soln_idx_path, gs.goal_idx)
     curr_vertex_idx = gs.goal_idx
 
     while curr_vertex_idx != gs.next_start_idx
         prev_vertex_idx = astar_path_soln.parent_indices[curr_vertex_idx]
-        unshift!(gs.curr_soln_idx_path, prev_vertex_idx)
+        pushfirst!(gs.curr_soln_idx_path, prev_vertex_idx)
         curr_vertex_idx = prev_vertex_idx
     end
 
@@ -482,7 +482,7 @@ function Graphs.include_vertex!(vis::GoalVisitorImplicit, u::CarDroneVertex, v::
         # NOTE - This assumes that all vertices are later in time
         # Epoch update function has handled this
         for next_idx in car_route_idxs
-            if vis.valid_edge_fn(v,vis.gs.car_drone_graph.vertices[next_idx],vis.gs.drone)
+            if vis.valid_edge_fn(v,vis.gs.car_drone_graph.vertices[next_idx],vis.gs.drone,vis.gs.params)
                 push!(nbrs,next_idx)
             end
         end
@@ -491,7 +491,7 @@ function Graphs.include_vertex!(vis::GoalVisitorImplicit, u::CarDroneVertex, v::
     # Iterate over remaining drone vertices and add flight edges to them
     # TODO - Fix this later when you may have interm drone
     for dvtx_idx in vis.gs.drone_vertex_idxs
-        if dvtx_idx != v.idx && vis.valid_edge_fn(v,vis.gs.car_drone_graph.vertices[dvtx_idx],vis.gs.drone)
+        if dvtx_idx != v.idx && vis.valid_edge_fn(v,vis.gs.car_drone_graph.vertices[dvtx_idx],vis.gs.drone,vis.gs.params)
             push!(nbrs, dvtx_idx)
         end
     end

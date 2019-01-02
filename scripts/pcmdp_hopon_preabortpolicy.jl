@@ -130,8 +130,8 @@ approx_hopon_outhorizon_policy = LocalApproximationValueIterationPolicy(out_hor_
 
 # hopon_policy_preabort = PartialControlHopOnOffPolicy(approx_hopon_inhorizon_policy, approx_hopon_outhorizon_policy, ordered_actions(pc_hopon_mdp))
 
-preabort_filename_inhor = string(policy_name,"-",poly_or_exp,"-preabort-inhor.jld2")
-preabort_filename_outhor = string(policy_name,"-",poly_or_exp,"-preabort-outhor.jld2")
+preabort_filename_inhor = string(policy_name,"-alpha",energy_time_alpha,"-",poly_or_exp,"-preabort-inhor.jld2")
+preabort_filename_outhor = string(policy_name,"-alpha",energy_time_alpha,"-",poly_or_exp,"-preabort-outhor.jld2")
 
 # save in-horizon and out-horizon policy
 save_localapproxvi_policy_to_jld2(preabort_filename_inhor, approx_hopon_inhorizon_policy, pc_hopon_mdp, 5)

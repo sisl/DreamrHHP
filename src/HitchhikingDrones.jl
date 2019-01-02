@@ -1,5 +1,7 @@
 module HitchhikingDrones
 
+import Base: <
+
 # Stdlib Requirements
 using Logging
 using Printf
@@ -137,9 +139,8 @@ export
     load_partialcontrolpolicy
 
 
-
-include("types.jl")
 include("parameters.jl")
+include("types.jl")
 include("macro_action_policy/uavdynamics.jl")
 include("utils.jl")
 include("macro_action_policy/partial_control_mdp.jl")
@@ -155,13 +156,13 @@ include("simulators/sdmc_simulator.jl")
 
 # Plot Utils
 # For plotting
-using Cairo 
-using Gadfly
-using Colors
-using Measures
-export
-    plot_car_route,
-    plot_drone_and_active_cars_epoch!
-include("plot_utils.jl")
+# using Cairo 
+# using Gadfly
+# using Colors
+# using Measures
+# export
+#     plot_car_route,
+#     plot_drone_and_active_cars_epoch!
+# include("plot_utils.jl")
 
 end # module

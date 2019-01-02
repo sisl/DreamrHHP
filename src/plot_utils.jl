@@ -18,8 +18,9 @@ function plot_drone_and_active_cars_epoch!(epoch_dict::Dict, drone_pos::Point, g
 
     # Plot the start and goal
     p = Gadfly.plot(x=[drone_pos.x, goal_pos.x], y=[drone_pos.y, goal_pos.y], 
-        shape=[Shape.star1],Geom.point, Theme(background_color=parse(Colorant,"white"),default_color=RGBA(0.,0.,0.,drone_alpha),point_size=drone_ptsize*pt),
+        shape=[Shape.star1],Geom.point, Theme(background_color=parse(Colorant,"white"),default_color=RGBA(0.,0.,0.,drone_alpha),key_position=:none,point_size=drone_ptsize*pt),
         xmin=[-1.],xmax=[1.],ymin=[-1.],ymax=[1.],Guide.xticks(ticks=nothing),Guide.xlabel(nothing),Guide.yticks(ticks=nothing),Guide.ylabel(nothing))
+        # Guide.shapekey(;title="", labels=[""], pos=Float64[]))
       
     for (car_id,car_ep_dict) in car_info_dict
         if car_ep_dict["route"] != nothing

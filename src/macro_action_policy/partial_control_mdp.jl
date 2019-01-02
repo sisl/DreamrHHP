@@ -253,14 +253,14 @@ end
 Generate a distribution over horizon values left for the uncontrolled problem to terminate, by sampling a number of finish times
 and binning them into histogram horizon values.
 """
-function generate_time_to_finish_dist(curr_time_to_fin::Float64, rng::RNG=Base.GLOBAL_RNG) where {RNG <: AbstractRNG}
+function generate_time_to_finish_dist(curr_time_to_fin::Float64, params::Parameters, rng::RNG=Base.GLOBAL_RNG) where {RNG <: AbstractRNG}
 
-    time_to_finish = Distributions.Normal(curr_time_to_fin, mdp.params.time_params.CAR_TIME_STD)
-    time_to_finish_prob = zeros(mdp.params.time_params.HORIZON_LIM+2)
+    time_to_finish = Distributions.Normal(curr_time_to_fin, params.time_params.CAR_TIME_STD)
+    time_to_finish_prob = zeros(params.time_params.HORIZON_LIM+2)
 
-    for j = 1:mdp.params.time_params.MC_TIME_NUMSAMPLES
-        tval = rand(rng, time_to_finish)/MDP_TIMESTEP
-        if tval >= mdp.params.time_params.HORIZON_LIM
+    for j = 1:params.time_params.MC_TIME_NUMSAMPLES
+        tval = rand(rng, time_to_finish)/params.time_params.MDP_TIMESTEP
+        if tval >= params.time_params.HORIZON_LIM
             time_to_finish_prob[end] += 1.0
         else
             low = convert(Int64,floor(tval))
@@ -285,7 +285,7 @@ A general policy object for representing the finite horizon policies (constraine
 struct PartialControlHopOnOffPolicy{UA <: UAVAction}
     in_horizon_policy::LocalApproximationValueIterationPolicy
     out_horizon_policy::LocalApproximationValueIterationPolicy
-    action_map::Union{Vector{HopOnAction{UA}}, HopOffAction}
+    action_map::Union{Vector{HopOnAction{UA}}, Vector{HopOffAction}}
 end
 
 
@@ -304,8 +304,8 @@ function hopon_policy_action(policy::PartialControlHopOnOffPolicy, rel_uavstate:
 
     action_values = zeros(n_actions(mdp))
 
-    for a in iterator(actions(mdp))
-        iaction = action_index(mdp,a)
+    for a in actions(mdp)
+        iaction = actionindex(mdp,a)
 
         # Horizon 0 value same for all actions - ignore
         for hor = 1:mdp.params.time_params.HORIZON_LIM
@@ -338,10 +338,10 @@ end
 Take an action according to the constrained flight policy, given a point estimate of the arrival time. This constructs a 
 distribution over the remaining time and calls the corresponding hopon_policy_action method.
 """
-function hopon_policy_action(policy::PartialControlHopOnOffPolicy, rel_uavstate::US, 
+function hopon_policy_action(policy::PartialControlHopOnOffPolicy, params::Parameters, rel_uavstate::US, 
                                 curr_time_to_fin::Float64, rng::RNG=Base.GLOBAL_RNG) where {US <: UAVState,RNG <: AbstractRNG}
     # Set up the time to finish samples
-    time_to_finish_prob = generate_time_to_finish_dist(curr_time_to_fin,rng)
+    time_to_finish_prob = generate_time_to_finish_dist(curr_time_to_fin, params, rng)
     return hopon_policy_action(policy,rel_uavstate,time_to_finish_prob,rng)
 end
 
@@ -357,8 +357,8 @@ function hopoff_policy_action(policy::PartialControlHopOnOffPolicy, time_to_fini
 
     action_values = zeros(n_actions(mdp))
 
-    for a in iterator(actions(mdp))
-        iaction = action_index(mdp,a)
+    for a in actions(mdp)
+        iaction = actionindex(mdp,a)
 
         # Horizon 0 value same for all actions - ignore
         for hor = 1:mdp.params.time_params.HORIZON_LIM
@@ -377,7 +377,7 @@ function hopoff_policy_action(policy::PartialControlHopOnOffPolicy, time_to_fini
         end
     end
 
-    best_action_idx = indmax(action_values)
+    best_action_idx = argmax(action_values)
     best_action = policy.in_horizon_policy.action_map[best_action_idx]
 
     # Could be either hop on or hop off action
@@ -390,10 +390,10 @@ end
 
 Take an action according to the hitchiking policy, by generating a time to finish distribution and calling the corresponding method for a distribution.
 """
-function hopoff_policy_action(policy::PartialControlHopOnOffPolicy, curr_time_to_fin::Float64, rng::RNG=Base.GLOBAL_RNG) where {RNG <: AbstractRNG}
+function hopoff_policy_action(policy::PartialControlHopOnOffPolicy, params::Parameters, curr_time_to_fin::Float64, rng::RNG=Base.GLOBAL_RNG) where {RNG <: AbstractRNG}
 
     # Set up the time to finish samples
-    time_to_finish_prob = generate_time_to_finish_dist(curr_time_to_fin)
+    time_to_finish_prob = generate_time_to_finish_dist(curr_time_to_fin, params, rng)
     return hopoff_policy_action(policy, time_to_finish_prob, rng)
 end
 
@@ -516,7 +516,12 @@ end
 function POMDPs.isterminal(mdp::UnconstrainedFlightMDP, s::US) where {US <: UAVState}
     curr_pos = get_position(s)
     curr_speed = get_speed(s)
-    return (point_norm(curr_pos) < mdp.params.time_params.MDP_TIMESTEP*mdp.params.scale_params.HOP_DISTANCE_THRESHOLD && curr_speed < mdp.params.scale_params.XYDOT_HOP_THRESH)
+
+    if point_norm(curr_pos) < mdp.params.time_params.MDP_TIMESTEP*mdp.params.scale_params.HOP_DISTANCE_THRESHOLD && 
+        curr_speed < mdp.params.scale_params.XYDOT_HOP_THRESH
+        return true
+    end
+    return false
 end
 
 

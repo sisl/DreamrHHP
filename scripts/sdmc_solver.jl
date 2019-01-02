@@ -1,46 +1,67 @@
 using GridInterpolations
-using POMDPs
-using POMDPModels
-using POMDPToolbox
-using StaticArrays
 using LocalFunctionApproximation
 using LocalApproximationValueIteration
-using JLD
-using JSON
-using HitchhikingDrones
+using POMDPs
+using POMDPModels
+using POMDPModelTools
+using StaticArrays
+using JLD2, FileIO
+using Random
 using Logging
+using Distributions
+using PDMats
+using Statistics
+using HitchhikingDrones
+using JSON
 
-## Load the policies to be used
-hopon_file = "hopon_denseparamset2-poly-abort_thresh-0.75.jld"
-hopoff_file = "hopoff_denseparamset.jld"
-flight_file = "flight_denseparamset2-poly.jld"
+# julia sdmc_solver.jl hopon_preabort-111-alpha0.375-poly-abort_thresh-0.75-inhor.jld2 hopon_preabort-111-alpha0.375-poly-preabort-outhor.jld2 hopoff-111-inhor.jld2 hopoff-111-outhor.jld2 flight-111-alpha-0.375-poly.jld2 ../data/paramsets/scale-1.toml ../data/paramsets/simtime-1.toml ../data/paramsets/cost-1.toml /scratch/shushman/HitchhikingDrones/set-1-easy/set-1-100-to-1000 1 nolog
 
-hopon_policy = load(hopon_file,"hopon_policy")
-hopoff_policy = load(hopoff_file,"hopoff_policy")
-flight_policy = load(flight_file,"flight_policy")
+
 
 ## Define Mersenne Twister for reproducibility
 rng = MersenneTwister(15)
+
+## Script arguments
+## Example usage <policy-args> /dir/to/data/set1-100-to-1000 1000 nolog
+# Args for policies to use
+hopon_inhor_file = ARGS[1]
+hopon_outhor_file = ARGS[2]
+hopoff_inhor_file = ARGS[3]
+hopoff_outhor_file = ARGS[4]
+flight_file = ARGS[5]
+
+# Args for parameter files
+scale_file = ARGS[6]
+simtime_file = ARGS[7]
+cost_file = ARGS[8]
+
+# Other arguments related to evaluation
+ep_file_prefix = ARGS[9]
+num_files = parse(Int, ARGS[10])
+to_log = ARGS[11]
+
+# Load the policies to use
+@show "Loading policies"
+hopon_policy = load_partialcontrolpolicy(hopon_inhor_file, hopon_outhor_file)
+hopoff_policy = load_partialcontrolpolicy(hopoff_inhor_file, hopoff_outhor_file)
+flight_policy = load_localapproxvi_policy_from_jld2(flight_file)
+
+# Parse the parameters
+params = parse_params(scale_file=scale_file, simtime_file=simtime_file, cost_file=cost_file)
 
 # NOTE - If the macro action is at a stage outside the bounds of the drone, just fly on the st.line path
 # towards the goal till it is within range
 @enum MODE GRAPH_PLAN=1 FLIGHT=2 COAST=3
 
-Logging.configure(level=ERROR)
-
-# Example usage /dir/to/data/set1-100-to-1000-(1 to 1000) 1000 nolog
-ep_file_prefix = ARGS[1]
-num_files = parse(Int, ARGS[2])
-to_log = ARGS[3]
-
 result_stats_dict = Dict()
 
+# Iterate over every single episode file
 for iter = 1:num_files
 
     episode_dict = Dict()
     ep_file = string(ep_file_prefix,"-",iter,".json")
 
-    println(ep_file)
+    @show ep_file
 
     open(ep_file,"r") do f
         episode_dict = JSON.parse(f)
@@ -53,18 +74,18 @@ for iter = 1:num_files
     num_epochs = episode_dict["num_epochs"]-1
 
     # Create dynamics model and drone
-    uav_dynamics = MultiRotorUAVDynamicsModel(MDP_TIMESTEP, ACC_NOISE_STD)
-    drone = Drone()
+    uav_dynamics = MultiRotorUAVDynamicsModel(params.time_params.MDP_TIMESTEP, params.scale_params.ACC_NOISE_STD, params)
+    drone = Drone(params)
 
     # Create SDMC Simulator and get initial epoch
-    sdmc_sim = SDMCSimulator(episode_dict["epochs"], uav_dynamics, start_pos, goal_pos, rng)
+    sdmc_sim = SDMCSimulator(episode_dict["epochs"], uav_dynamics, start_pos, goal_pos, params, rng)
 
     # Create graph solution
-    graph_planner = GraphSolution(drone)
+    graph_planner = GraphSolution(drone, params)
     setup_graph(graph_planner, start_pos, goal_pos, get_epoch0_dict(sdmc_sim))
 
     # Use the value function for flight edge weights
-    flight_edge_wt_fn(u,v) = flight_edge_cost_valuefn(uav_dynamics, hopon_policy, flight_policy, u, v, drone)
+    flight_edge_wt_fn(u,v) = flight_edge_cost_valuefn(uav_dynamics, hopon_policy, flight_policy, u, v, params)
     # flight_edge_wt_fn(u,v) = flight_edge_cost_nominal(u, v, drone)
 
 
@@ -104,12 +125,15 @@ for iter = 1:num_files
             if need_to_replan == true
                 plan_from_next_start(graph_planner, flight_edge_wt_fn, is_valid_flight_edge)
                 need_to_replan = false
+                # for mav in graph_planner.future_macro_actions_values
+                #     println(mav)
+                # end
                 # readline()
             end
 
             # If there is no next macro action, just continue (FOR NOW)
             if graph_planner.has_next_macro_action == false
-                warn("No macro action available, just waiting")
+                @warn "No macro action available, just waiting"
                 sdmc_action = MultiRotorUAVAction(0.0,0.0)
                 need_to_replan = true
             else
@@ -139,24 +163,25 @@ for iter = 1:num_files
             # NOTE - Heuristic for efficiency
             # If the horizon is far out just directly generate the out-horizon action
             if curr_fin_time < Inf
-                if curr_fin_time/MDP_TIMESTEP > HORIZON_LIM + 2
-                    aug_outhor_state = ControlledHopOnStateAugmented(rel_uavstate,HORIZON_LIM+1)
+                if curr_fin_time/params.time_params.MDP_TIMESTEP > params.time_params.HORIZON_LIM + 2
+                    aug_outhor_state = ControlledHopOnStateAugmented(rel_uavstate,params.time_params.HORIZON_LIM+1)
                     best_action = action(hopon_policy.out_horizon_policy, aug_outhor_state)
 
                     if best_action.control_transfer == true
                         # Lower level action aborts
-                        info("Aborting current hopon action")
+                        @info "Aborting current hopon action"
                         sdmc_action = MultiRotorUAVAction(0.0,0.0)
                         need_to_replan = true
                     else
                         # Just get the UAV action
                         sdmc_action = best_action.uavaction
                     end
-                elseif curr_fin_time < MDP_TIMESTEP
+                elseif curr_fin_time < params.time_params.MDP_TIMESTEP
                     @assert next_vertex.is_car==true
-                    curr_speed = sqrt(curr_state.uav_state.xdot^2 + curr_state.uav_state.ydot^2)
+                    curr_speed = get_speed(curr_state.uav_state)
                     # Go for the hop if you can
-                    if curr_dist < MDP_TIMESTEP*HOP_DISTANCE_THRESHOLD && curr_speed < XYDOT_HOP_THRESH
+                    if curr_dist < params.time_params.MDP_TIMESTEP*params.scale_params.HOP_DISTANCE_THRESHOLD && 
+                        curr_speed < params.scale_params.XYDOT_HOP_THRESH
                         sdmc_action = (HOPON, next_vertex.car_id)
                         need_to_replan = true
                     else
@@ -165,7 +190,7 @@ for iter = 1:num_files
                         need_to_replan = true
                     end
                 else
-                    best_action = hopon_policy_action(hopon_policy, rel_uavstate, curr_fin_time, rng)
+                    best_action = hopon_policy_action(hopon_policy, params, rel_uavstate, curr_fin_time, rng)
 
                     if best_action.control_transfer == true
                         # Lower level action aborts
@@ -191,7 +216,7 @@ for iter = 1:num_files
                 sdmc_action = (HOPOFF,curr_state.car_id)
                 need_to_replan = true
             else 
-                best_action = hopoff_policy_action(hopoff_policy, curr_fin_time, rng)
+                best_action = hopoff_policy_action(hopoff_policy, params, curr_fin_time, rng)
                 sdmc_action = (best_action.hopaction, curr_state.car_id)
                 if best_action.hopaction == HOPOFF 
                     need_to_replan=true
@@ -208,7 +233,7 @@ for iter = 1:num_files
         prev_pos = Point(curr_state.uav_state.x, curr_state.uav_state.y)
 
         # Invoke action on SDMC simulator and get new current state and time
-        curr_state, reward, is_terminal, epoch_info_dict = step_SDMC(sdmc_sim, sdmc_action)
+        curr_state, reward, is_terminal, epoch_info_dict = step_sim(sdmc_sim, sdmc_action)
 
         curr_pos = Point(curr_state.uav_state.x, curr_state.uav_state.y)
         dist_flown += point_dist(prev_pos, curr_pos)
@@ -245,7 +270,7 @@ for iter = 1:num_files
                 add_new_start(graph_planner, Point(curr_state.uav_state.x, curr_state.uav_state.y), curr_time)
             else
                 # TODO : This only happens when a hop is successful? OR unsuccessful hopoff
-                info("[OUTER LOOP]: Successful hop OR (not yet) unsuccessful hopoff")
+                @info "[OUTER LOOP]: Successful hop OR (not yet) unsuccessful hopoff"
                 # Check that last action was a hopon
                 @assert sdmc_action[1] == HOPON
 
@@ -280,12 +305,12 @@ for iter = 1:num_files
 
     # Update results stats
     result_stats_dict[iter] = Dict("success"=>is_success, "reward"=>episode_reward, 
-                                   "distance"=>dist_flown, "time"=>used_epochs*MDP_TIMESTEP,
+                                   "distance"=>dist_flown, "time"=>used_epochs*params.time_params.MDP_TIMESTEP,
                                    "attempted_hops"=>attempted_hops,"successful_hops"=>successful_hops)
 end # End for iter 
 
 # Write stats json to file
-stats_filename = string(ep_file_prefix,"-sdmc-solver-stats.json")
+stats_filename = string(ep_file_prefix,"-testjulia1-sdmc-solver-stats.json")
 open(stats_filename,"w") do f
     JSON.print(f,result_stats_dict,2)
 end
