@@ -138,12 +138,12 @@ function load_localapproxvi_policy_from_jld2(policy_fn::String)
                                                   policy_n_gen_samples, MersenneTwister(policy_seed))
 end
 
-function load_partialcontrolpolicy(inhor_policy_fn::String, outhor_policy_fn::String)
+function load_partialcontrolpolicy(UA::Type{<:UAVAction},inhor_policy_fn::String, outhor_policy_fn::String)
 
     inhor_policy = load_localapproxvi_policy_from_jld2(inhor_policy_fn)
     outhor_policy = load_localapproxvi_policy_from_jld2(outhor_policy_fn)
 
     @assert inhor_policy.action_map == outhor_policy.action_map "Action Maps for in and out horizon must match!"
 
-    return PartialControlHopOnOffPolicy{MultiRotorUAVAction}(inhor_policy, outhor_policy, inhor_policy.action_map)
+    return PartialControlHopOnOffPolicy{UA}(inhor_policy, outhor_policy, inhor_policy.action_map)
 end
