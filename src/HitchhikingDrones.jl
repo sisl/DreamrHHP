@@ -1,7 +1,5 @@
 module HitchhikingDrones
 
-import Base: <
-
 # Stdlib Requirements
 using Logging
 using Printf
