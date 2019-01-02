@@ -42,9 +42,11 @@ to_log = ARGS[11]
 
 # Load the policies to use
 @show "Loading policies"
-hopon_policy = load_partialcontrolpolicy(hopon_inhor_file, hopon_outhor_file)
-hopoff_policy = load_partialcontrolpolicy(hopoff_inhor_file, hopoff_outhor_file)
+hopon_policy = load_partialcontrolpolicy(MultiRotorUAVAction, hopon_inhor_file, hopon_outhor_file)
+hopoff_policy = load_partialcontrolpolicy(MultiRotorUAVAction, hopoff_inhor_file, hopoff_outhor_file)
 flight_policy = load_localapproxvi_policy_from_jld2(flight_file)
+
+readline()
 
 # Parse the parameters
 params = parse_params(scale_file=scale_file, simtime_file=simtime_file, cost_file=cost_file)
