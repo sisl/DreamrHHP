@@ -517,12 +517,8 @@ function POMDPs.isterminal(mdp::UnconstrainedFlightMDP, s::US) where {US <: UAVS
     curr_pos_norm = point_norm(get_position(s))
     curr_speed = get_speed(s)
 
-    if (curr_pos_norm < (mdp.params.time_params.MDP_TIMESTEP*mdp.params.scale_params.HOP_DISTANCE_THRESHOLD)) && 
+    return (curr_pos_norm < mdp.params.time_params.MDP_TIMESTEP*mdp.params.scale_params.HOP_DISTANCE_THRESHOLD) && 
         (curr_speed < mdp.params.scale_params.XYDOT_HOP_THRESH)
-        return true
-    end
-    return false
-    # return (2.3 < 3.4)
 end
 
 

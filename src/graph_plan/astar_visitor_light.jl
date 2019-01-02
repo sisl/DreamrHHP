@@ -20,11 +20,7 @@ struct AStarHEntry{D <: Number}
     fvalue::D
 end
 
-# function Base.isless(e1::AStarHEntry, e2::AStarHEntry)
-#     return e1.fvalue < e2.fvalue
-# end
-
-function Base.<(e1::AStarHEntry, e2::AStarHEntry) = e1.fvalue < e2.fvalue
+Base.isless(e1::AStarHEntry, e2::AStarHEntry) = e1.fvalue < e2.fvalue
 
 
 function create_astar_states(g::AbstractGraph{V}, ::Type{D}) where {V, D <: Number}
