@@ -50,7 +50,7 @@ grid_vertices = vertices(flight_grid)
 
 # Create function approximator and compute policy
 flight_approximator = LocalGIFunctionApproximator(flight_grid)
-approx_flight_solver = LocalApproximationValueIterationSolver(flight_approximator,max_iterations=150,verbose=true,rng=rng,
+approx_flight_solver = LocalApproximationValueIterationSolver(flight_approximator,max_iterations=500,verbose=true,rng=rng,
                                                 is_mdp_generative=true,n_generative_samples=params.scale_params.MC_GENERATIVE_NUMSAMPLES)
 approx_flight_policy = solve(approx_flight_solver, flight_mdp)
 
