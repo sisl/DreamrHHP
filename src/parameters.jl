@@ -75,7 +75,7 @@ function parse_simtime(filename::AbstractString)
     return SimTimeParameters(params_key["MDP_TIMESTEP"],
                              params_key["HORIZON_LIM"],
                              get(params_key, "WAYPT_TIME_CHANGE_THRESHOLD", params_key["MDP_TIMESTEP"]/2.0),
-                             params_key["MAX_REPLAN_TIMESTEP"],
+                             get(params_key["MAX_REPLAN_TIMESTEP"],params_key["MDP_TIMESTEP"]*10),
                              get(params_key, "CAR_TIME_STD", params_key["MDP_TIMESTEP"]/2.0),
                              params_key["MC_TIME_NUMSAMPLES"])
 end
