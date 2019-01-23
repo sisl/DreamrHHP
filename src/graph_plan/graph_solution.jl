@@ -37,7 +37,8 @@ function GraphSolution(drone::Drone, params::Parameters)
         params.scale_params.MAX_CAR_SPEED, 0, 0, false, 0, 0.0, car_drone_graph, 
         Dict{String,Int}(), Vector{Int}(undef,0), Dict{Tuple{Int,Int},Float64}(),
         Vector{Int}(undef,0), Inf, false, Vector{Tuple{Tuple{CarDroneVertex,CarDroneVertex}, Float64}}(undef,0),
-        Dict{Int,Set{String}}(), params)
+        Dict{Int,Set{String}}(),
+        params)
 end
 
 """
@@ -227,9 +228,6 @@ function edge_weight_function_recompute(flight_edge_wt_fn::Function, gs::GraphSo
     if u.is_car && v.is_car && u.car_id == v.car_id
         # Coasting edge
         return coast_edge_cost(u,v, gs.params)
-    elseif !v.is_car
-        # Flight edge to drone vertex 
-        return flight_edge_cost_nominal(u,v,gs.drone)
     else
         # Constrained flight edge
         return flight_edge_wt_fn(u,v)
@@ -308,7 +306,7 @@ function plan_from_next_start(gs::GraphSolution, flight_edge_wt_fn::Function, va
     # TODO : What's the right way to just do this once?
     heuristic(v) = astar_heuristic(gs, v)
     # heuristic(v) = 0.0
-    edge_wt_fn(u,v) = edge_weight_function_lookup(flight_edge_wt_fn, gs, u, v)
+    edge_wt_fn(u,v) = edge_weight_function_recompute(flight_edge_wt_fn, gs, u, v)
 
     # println("Planning from - ",gs.car_drone_graph.vertices[gs.next_start_idx])
 
@@ -460,8 +458,7 @@ function Graphs.include_vertex!(vis::GoalVisitorImplicit, u::CarDroneVertex, v::
         # for n in nbrs
         #     print(n,", ")
         # end
-        # NOTE : If this is the first coast vertex, don't do any more
-        # Must do at least 1 coast edge
+
         if u.is_car == false || u.car_id != v.car_id || (u.idx == v.idx && v.idx != vis.gs.car_map[v.car_id].route_idx_range[2])
             return true
         end
@@ -470,7 +467,7 @@ function Graphs.include_vertex!(vis::GoalVisitorImplicit, u::CarDroneVertex, v::
 
     # Iterate over cars that are not the same and not in passed cars
     for car_id in collect(keys(vis.gs.car_map))
-        if car_id == v.car_id || car_id in vis.gs.per_plan_considered_cars[v.idx] || vis.gs.car_map[car_id].active==false
+        if car_id == v.car_id || vis.gs.car_map[car_id].active==false || car_id in vis.gs.per_plan_considered_cars[v.idx]
             continue
         end
 
