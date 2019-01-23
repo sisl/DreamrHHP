@@ -41,12 +41,11 @@ num_files = parse(Int, ARGS[10])
 to_log = ARGS[11]
 
 # Load the policies to use
-@show "Loading policies"
+@info "Loading policies"
 hopon_policy = load_partialcontrolpolicy(MultiRotorUAVAction, hopon_inhor_file, hopon_outhor_file)
 hopoff_policy = load_partialcontrolpolicy(MultiRotorUAVAction, hopoff_inhor_file, hopoff_outhor_file)
 flight_policy = load_localapproxvi_policy_from_jld2(flight_file)
 
-readline()
 
 # Parse the parameters
 params = parse_params(scale_file=scale_file, simtime_file=simtime_file, cost_file=cost_file)
@@ -84,7 +83,7 @@ for iter = 1:num_files
 
     # Create graph solution
     graph_planner = GraphSolution(drone, params)
-    setup_graph(graph_planner, start_pos, goal_pos, get_epoch0_dict(sdmc_sim))
+    @time setup_graph(graph_planner, start_pos, goal_pos, get_epoch0_dict(sdmc_sim))
 
     # Use the value function for flight edge weights
     flight_edge_wt_fn(u,v) = flight_edge_cost_valuefn(uav_dynamics, hopon_policy, flight_policy, u, v, params)
@@ -106,9 +105,11 @@ for iter = 1:num_files
 
     # Initialize plan
     mode = GRAPH_PLAN
-    need_to_replan = true
+    event_replan = true
+    period_replan = true
     curr_state = sdmc_sim.state
     curr_time = 0.0
+    last_plan_time = 0.0
 
     # Metrics to track performance
     episode_reward = 0.0
@@ -117,6 +118,7 @@ for iter = 1:num_files
     used_epochs = 0
     attempted_hops = 0
     successful_hops = 0
+    next_vertex = CarDroneVertex()
 
     for epoch = 1:num_epochs
 
@@ -124,9 +126,11 @@ for iter = 1:num_files
         if mode == GRAPH_PLAN
 
             # Check if there is a need to replan from the next start
-            if need_to_replan == true
+            if event_replan || period_replan
                 plan_from_next_start(graph_planner, flight_edge_wt_fn, is_valid_flight_edge)
-                need_to_replan = false
+                last_plan_time = curr_time
+                period_replan = false
+                event_replan = false
                 # for mav in graph_planner.future_macro_actions_values
                 #     println(mav)
                 # end
@@ -136,92 +140,107 @@ for iter = 1:num_files
             # If there is no next macro action, just continue (FOR NOW)
             if graph_planner.has_next_macro_action == false
                 @warn "No macro action available, just waiting"
-                sdmc_action = MultiRotorUAVAction(0.0,0.0)
-                need_to_replan = true
+                event_replan = true
+                if curr_state.on_car
+                    sdmc_action = (STAY,curr_state.car_id)
+                else
+                    sdmc_action = MultiRotorUAVAction(0.0,0.0)
+                end
             else
                 # Decide what the next macro action is and set modes accordingly
                 next_macro_edge = graph_planner.future_macro_actions_values[1][1]
+                next_vertex = graph_planner.future_macro_actions_values[1][1][2]
 
                 # If it is currently on a car it should be coast, regardless of destination
                 if next_macro_edge[1].is_car == true
                     @assert curr_state.on_car == true
                     mode = COAST
+                    # IMP : Corner case, check that next_vertex is not of a different car
+                    if next_vertex.car_id != graph_planner.future_macro_actions_values[1][1][1].car_id
+                        # This means we planned to take flight
+                        @info "Coast mode corner case"
+                        next_vertex = graph_planner.future_macro_actions_values[1][1][1]
+                    end
                 else
                     mode = FLIGHT
                 end
             end
         end
 
-        # This is your next vertex
-        next_vertex = graph_planner.future_macro_actions_values[1][1][2]
-        curr_fin_time = next_vertex.time_stamp - curr_time
-        curr_dist = point_dist(Point(curr_state.uav_state.x,curr_state.uav_state.y), next_vertex.pos)
+        # Only use macro action if one is available
+        if graph_planner.has_next_macro_action
+            curr_fin_time = next_vertex.time_stamp - curr_time
 
-        if mode == FLIGHT
-            @assert curr_state.on_car == false
-            # set up relative UAV state
-            rel_uavstate = MultiRotorUAVState(curr_state.uav_state.x - next_vertex.pos.x,curr_state.uav_state.y - next_vertex.pos.y,
-                                              curr_state.uav_state.xdot, curr_state.uav_state.ydot)
-            # NOTE - Heuristic for efficiency
-            # If the horizon is far out just directly generate the out-horizon action
-            if curr_fin_time < Inf
-                if curr_fin_time/params.time_params.MDP_TIMESTEP > params.time_params.HORIZON_LIM + 2
-                    aug_outhor_state = ControlledHopOnStateAugmented(rel_uavstate,params.time_params.HORIZON_LIM+1)
-                    best_action = action(hopon_policy.out_horizon_policy, aug_outhor_state)
+            if mode == FLIGHT
+                @assert curr_fin_time > 0.0
+                @assert curr_state.on_car == false
 
-                    if best_action.control_transfer == true
-                        # Lower level action aborts
-                        @info "Aborting current hopon action"
-                        sdmc_action = MultiRotorUAVAction(0.0,0.0)
-                        need_to_replan = true
+                curr_dist = point_dist(Point(curr_state.uav_state.x,curr_state.uav_state.y), next_vertex.pos)
+
+                # set up relative UAV state
+                rel_uavstate = MultiRotorUAVState(curr_state.uav_state.x - next_vertex.pos.x,curr_state.uav_state.y - next_vertex.pos.y,
+                                                  curr_state.uav_state.xdot, curr_state.uav_state.ydot)
+                # NOTE - Heuristic for efficiency
+                # If the horizon is far out just directly generate the out-horizon action
+                if curr_fin_time < Inf
+                    if curr_fin_time/params.time_params.MDP_TIMESTEP > params.time_params.HORIZON_LIM + 2
+                        aug_outhor_state = ControlledHopOnStateAugmented(rel_uavstate,params.time_params.HORIZON_LIM+1)
+                        best_action = action(hopon_policy.out_horizon_policy, aug_outhor_state)
+
+                        if best_action.control_transfer == true
+                            # Lower level action aborts
+                            @info "Aborting current hopon action"
+                            sdmc_action = MultiRotorUAVAction(0.0,0.0)
+                            event_replan = true
+                        else
+                            # Just get the UAV action
+                            sdmc_action = best_action.uavaction
+                        end
+                    elseif curr_fin_time < params.time_params.MDP_TIMESTEP
+                        @assert next_vertex.is_car==true
+                        curr_speed = get_speed(curr_state.uav_state)
+                        event_replan = true
+
+                        # Go for the hop if you can
+                        if curr_dist < params.time_params.MDP_TIMESTEP*params.scale_params.HOP_DISTANCE_THRESHOLD && 
+                            curr_speed < params.scale_params.XYDOT_HOP_THRESH
+                            sdmc_action = (HOPON, next_vertex.car_id)
+                        else
+                            # Missed connection and didn't abort before - just propagate  dynamics and replan
+                            sdmc_action = MultiRotorUAVAction(0.0,0.0)
+                        end
                     else
-                        # Just get the UAV action
-                        sdmc_action = best_action.uavaction
-                    end
-                elseif curr_fin_time < params.time_params.MDP_TIMESTEP
-                    @assert next_vertex.is_car==true
-                    curr_speed = get_speed(curr_state.uav_state)
-                    # Go for the hop if you can
-                    if curr_dist < params.time_params.MDP_TIMESTEP*params.scale_params.HOP_DISTANCE_THRESHOLD && 
-                        curr_speed < params.scale_params.XYDOT_HOP_THRESH
-                        sdmc_action = (HOPON, next_vertex.car_id)
-                        need_to_replan = true
-                    else
-                        # Missed connection and didn't abort before - just propagate  dynamics and replan
-                        sdmc_action = MultiRotorUAVAction(0.0,0.0)
-                        need_to_replan = true
+                        best_action = hopon_policy_action(hopon_policy, params, rel_uavstate, curr_fin_time, rng)
+
+                        if best_action.control_transfer == true
+                            # Lower level action aborts
+                            info("Aborting current hopon action")
+                            sdmc_action = MultiRotorUAVAction(0.0,0.0)
+                            event_replan = true
+                        else
+                            # Just get the UAV action
+                            sdmc_action = best_action.uavaction
+                        end
                     end
                 else
-                    best_action = hopon_policy_action(hopon_policy, params, rel_uavstate, curr_fin_time, rng)
-
-                    if best_action.control_transfer == true
-                        # Lower level action aborts
-                        info("Aborting current hopon action")
-                        sdmc_action = MultiRotorUAVAction(0.0,0.0)
-                        need_to_replan = true
-                    else
-                        # Just get the UAV action
-                        sdmc_action = best_action.uavaction
-                    end
+                    best_action = action(flight_policy, rel_uavstate)
+                    sdmc_action = best_action.uav_action
                 end
             else
-                best_action = action(flight_policy, rel_uavstate)
-                sdmc_action = best_action.uav_action
-            end
+                @assert curr_state.on_car == true
 
-        else
-            @assert curr_state.on_car == true
-            # COAST mode - simpler :P
-            # If not in the last stretch, just STAY
-            # If by some bug the next vertex is flight, just hopoff
-            if next_vertex.is_car == false
-                sdmc_action = (HOPOFF,curr_state.car_id)
-                need_to_replan = true
-            else 
-                best_action = hopoff_policy_action(hopoff_policy, params, curr_fin_time, rng)
-                sdmc_action = (best_action.hopaction, curr_state.car_id)
-                if best_action.hopaction == HOPOFF 
-                    need_to_replan=true
+                # If not in the last stretch, just STAY
+                # If by some bug the next vertex is flight, just hopoff
+                if curr_fin_time < 0.0 || next_vertex.is_car == false
+                    @warn "Next vertex for riding edge is flight?"
+                    sdmc_action = (HOPOFF,curr_state.car_id)
+                    event_replan = true
+                else
+                    best_action = hopoff_policy_action(hopoff_policy, params, curr_fin_time, rng)
+                    sdmc_action = (best_action.hopaction, curr_state.car_id)
+                    if best_action.hopaction == HOPOFF
+                        event_replan=true
+                    end
                 end
             end
         end
@@ -258,34 +277,44 @@ for iter = 1:num_files
 
         update_cars_with_epoch(graph_planner, epoch_info_dict)
 
+        if curr_time - last_plan_time > params.time_params.MAX_REPLAN_TIMESTEP
+            last_plan_time = curr_time
+            period_replan = true
+        end
+
+
         # If there is a need to replan, check if it is close enough in space (and time) to macro action end/start vertex
-        if need_to_replan == true
+        if event_replan || period_replan
             
+            # Log attempted and successful hop
             if typeof(sdmc_action) <: Tuple && sdmc_action[1] == HOPON
                 attempted_hops += 1
+                if ~curr_state.on_car
+                    successful_hops += 1
+                end
             end
 
             mode = GRAPH_PLAN
+
             # If not on a car, then hopped off or aborted in mid-flight or missed connection right at the end
             # In all such cases add a new drone vertex and replan
             if curr_state.on_car == false
                 add_new_start(graph_planner, Point(curr_state.uav_state.x, curr_state.uav_state.y), curr_time)
             else
-                # TODO : This only happens when a hop is successful? OR unsuccessful hopoff
-                @info "[OUTER LOOP]: Successful hop OR (not yet) unsuccessful hopoff"
-                # Check that last action was a hopon
-                @assert sdmc_action[1] == HOPON
-
-                successful_hops += 1
+                # @info "Replanning while on car"
+                # @show next_vertex
+                # @show graph_planner.next_start_idx
+                # @show graph_planner.car_map[curr_state.car_id].route_idx_range
+                graph_planner.next_start_idx = graph_planner.car_map[curr_state.car_id].route_idx_range[1]
 
                 # Check up the next vertex that the car has to pass. IF it is NOT the same as next_vertex
                 # then reset it to that and move the time forward 
-                if graph_planner.car_map[curr_state.car_id].route_idx_range[1] != next_vertex.idx
-                    graph_planner.car_map[curr_state.car_id].route_idx_range[1] = next_vertex.idx
-                    graph_planner.next_start_idx = next_vertex.idx
-                    next_vertex.last_time_stamp = next_vertex.time_stamp
-                    next_vertex.time_stamp = curr_time
-                end
+                # if graph_planner.car_map[curr_state.car_id].route_idx_range[1] != next_vertex.idx
+                #     graph_planner.car_map[curr_state.car_id].route_idx_range[1] = next_vertex.idx
+                #     graph_planner.next_start_idx = next_vertex.idx
+                #     next_vertex.last_time_stamp = next_vertex.time_stamp
+                #     next_vertex.time_stamp = curr_time
+                # end
             end
         end
     end
