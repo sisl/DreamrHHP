@@ -333,13 +333,12 @@ function generate_episode_dict_unitgrid(min_cars::Int, max_cars::Int, params::Da
     episode_dict["epochs"][0] = epoch0_dict
 
     # Decides how many subsequent epochs to add car routes at
-    num_epochs_to_add = num_total_cars / (2.0*avg_cars_per_epoch)
+    num_epochs_to_add = convert(Int64, round(num_total_cars / (2.0*avg_cars_per_epoch)))
     if num_epochs_to_add < min_car_add_epochs
         num_epochs_to_add = min_car_add_epochs
     elseif num_epochs_to_add > num_epochs-1
         num_epochs_to_add = num_epochs-1
     end
-
 
     epochs_to_add = sort(sample(rng,2:num_epochs,num_epochs_to_add,replace=false))
 
@@ -387,12 +386,13 @@ end
 
 
 # Script level code
-#Arguments are <min-cars> <max-cars> <params-file> <file-name> <num-files>
+#Arguments are <min-cars> <max-cars> <params-file> <file-name> <num-files> <plot-ep1(true/false)>
 min_cars = parse(Int,ARGS[1])
 max_cars = parse(Int, ARGS[2])
 params_file = ARGS[3]
 filename_pref = ARGS[4]
 num_files = parse(Int,ARGS[5])
+plot_ep1 = parse(Bool,ARGS[6])
 
 # First obtain the params
 params = parse_data_params(params_file)
@@ -410,8 +410,9 @@ for idx = 1:num_files
         JSON.print(f,ep_dict,2)
     end
 
-    color_map = Dict()
-    p = plot_drone_and_active_cars_epoch!(epochs_dict[1], Point(start_pos[1],start_pos[2]), Point(goal_pos[1],goal_pos[2]), color_map)
-    draw(PNG("test_fig.png", 25cm, 25cm), p)
-
+    if plot_ep1
+        color_map = Dict()
+        p = plot_drone_and_active_cars_epoch!(epochs_dict[1], Point(start_pos[1],start_pos[2]), Point(goal_pos[1],goal_pos[2]), color_map)
+        draw(PNG("test_fig.png", 25cm, 25cm), p)
+    end
 end
