@@ -1,4 +1,4 @@
-module HitchhikingDrones
+module DreamrHHP
 
 # Stdlib Requirements
 using Logging

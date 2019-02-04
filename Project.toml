@@ -1,7 +1,7 @@
-name = "HitchhikingDrones"
-uuid = "b27904f2-a458-5a95-91a8-e900dcfdf22d"
-repo = "https://github.com/sisl/HitchhikingDrones.jl"
-version = "0.0.1"
+name = "DreamrHHP"
+uuid = "23dd6922-2845-11e9-2903-71c7ce8aa42a"
+authors = ["Shushman <shushmanchoudhury@gmail.com>"]
+version = "0.1.0"
 
 [deps]
 Cairo = "159f3aea-2a34-519c-b102-8c37f9878175"
