@@ -1,5 +1,4 @@
 ## SDMC - SINGLE DRONE MULTIPLE CAR
-
 """
 Represents the current state in the Single Drone Multiple Car system. Has the current state of the
 UAV (according to its dynamics model), which car it is on and the corresponding ID of the car.

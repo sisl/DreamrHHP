@@ -1,3 +1,4 @@
+## NOTE - This is an adhoc simulator that was only used for testing the constrained flight behavior.
 mutable struct HopOnOffSingleCarSimulator
     timestep::Float64
     time_to_finish::Distributions.Normal{Float64}

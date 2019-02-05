@@ -149,11 +149,9 @@ include("graph_plan/mpc_utils.jl")
 include("simulators/hoponoff_singlecar_simulator.jl")
 include("simulators/sdmc_simulator.jl")
 
-# Sandbox - for testing script utils
-# include("../data/grid_data_generator.jl")
 
 # Plot Utils
-# For plotting
+# Uncomment for plotting
 # using Cairo 
 # using Gadfly
 # using Colors

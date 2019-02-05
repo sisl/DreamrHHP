@@ -199,27 +199,6 @@ function POMDPs.generate_sr(mdp::ControlledHopOnMDP, s::ControlledHopOnStateAugm
     end
 end
 
-# Explicit transition deprecated
-# function transition(mdp::ControlledMultiRotorHopOnMDP, s::ControlledHopOnStateAugmented, a::HopOnAction)
-
-#     if a.uavaction != nothing
-
-#         sigma_uavstates, sigma_probs = sigma_point_states_weights(mdp.dynamics, s.rel_uavstate, a.uavaction)
-#         n_nbrs = length(sigma_uavstates)
-#         nbr_states = Vector{ControlledHopOnStateAugmented}(n_nbrs)
-
-#         for i = 1:n_nbrs
-#             nbr_states[i] = ControlledHopOnStateAugmented(sigma_uavstates[i], s.horizon-1)
-#         end
-
-#         return SparseCat(nbr_states, sigma_probs)
-#     elseif a.control_transfer == true
-#         return SparseCat([ControlledHopOnStateAugmented(s.rel_uavstate, -1)],[1.0])
-#     else
-#         throw(ArgumentError("Invalid action specified!"))
-#     end
-# end
-
 function reward(mdp::ControlledHopOnMDP, s::ControlledHopOnStateAugmented, a::HopOnAction, sp::ControlledHopOnStateAugmented)
 
     cost = mdp.energy_time_alpha*mdp.params.cost_params.TIME_COEFFICIENT*mdp.params.time_params.MDP_TIMESTEP
@@ -396,56 +375,6 @@ function hopoff_policy_action(policy::PartialControlHopOnOffPolicy, params::Para
     time_to_finish_prob = generate_time_to_finish_dist(curr_time_to_fin, params, rng)
     return hopoff_policy_action(policy, time_to_finish_prob, rng)
 end
-
-# TODO: Deprecated
-# function get_acc_along_axis_outhordist(axis_pos_diff::Float64, axis_dot::Float64)
-
-#     if axis_pos_diff < 1.05*XY_LIM
-#         # Just take it to rest
-#         acc = min(abs(axis_dot/MDP_TIMESTEP), ACCELERATION_LIM)
-#         acc = copysign(acc, -axis_dot)
-#     else
-#         if sign(axis_pos_diff) == sign(axis_dot)
-#             acc = copysign(ACCELERATION_LIM, -axis_dot)
-#         else
-#             if abs(axis_dot) >= XYDOT_LIM
-#                 acc = 0.0
-#             else
-#                 acc = copysign(ACCELERATION_LIM, axis_dot)
-#             end
-#         end
-#     end
-#     return acc
-# end
-
-# function outhor_outdist_action(rel_uavstate::MultiRotorUAVState)
-#     acc_x = get_acc_along_axis_outhordist(rel_uavstate.x, rel_uavstate.xdot)
-#     acc_y = get_acc_along_axis_outhordist(rel_uavstate.y, rel_uavstate.ydot)
-#     return HopOnAction(-1, MultiRotorUAVAction(acc_x, acc_y), nothing)
-# end
-
-
-# function get_acc_along_axis_unconstrained(axis_pos_diff::Float64, axis_dot::Float64)
-
-#     if sign(axis_pos_diff) == sign(axis_dot)
-#         acc = copysign(ACCELERATION_LIM, -axis_dot)
-#     else
-#         if axis_pos_diff > 10*XYDOT_LIM*MDP_TIMESTEP
-#             acc = copysign(ACCELERATION_LIM, axis_dot)
-#         else
-#             acc_untrunc = min(abs(-2*(axis_pos_diff + axis_dot*MDP_TIMESTEP)/(MDP_TIMESTEP^2)), ACCELERATION_LIM)
-#             acc = copysign(acc_untrunc, axis_dot)
-#         end
-#     end
-#     return acc
-# end
-
-
-# function unconstrained_flight_action(rel_uavstate::MultiRotorUAVState)
-#     acc_x = get_acc_along_axis_unconstrained(rel_uavstate.x, rel_uavstate.xdot)
-#     acc_y = get_acc_along_axis_unconstrained(rel_uavstate.y, rel_uavstate.ydot)
-#     return MultiRotorUAVAction(acc_x, acc_y)
-# end
 
 
 # State conversion functions

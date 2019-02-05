@@ -174,37 +174,3 @@ function dynamics_cost(model::MultiRotorUAVDynamicsModel, state::MultiRotorUAVSt
 
     return cost
 end
-
-# DEPRECATED
-# function sigma_point_states_weights(model::MultiRotorUAVDynamicsModel, state::MultiRotorUAVState, action::MultiRotorUAVAction)
-
-#     n = 2 # dimensionality
-#     lambd = SIGMA_PT_ALPHA^2*(n + SIGMA_PT_KAPPA) - n
-#     covar_mat = std(model.noise)^2 * eye(n)
-#     sigma_pt_mat = sqrt.((n+lambd)*covar_mat) 
-#     mean_row = [mean(model.noise), mean(model.noise)]
-
-#     sigma_xy_ddots = zeros((2*n+1,2))
-#     weights = zeros(2*n+1)
-
-#     sigma_xy_ddots[1,:] = [action.xddot, action.yddot]
-#     weights[1] = lambd/(n+lambd)
-
-#     for i=2:n+1
-#         sigma_xy_ddots[i,:] = mean_row + sigma_pt_mat[i-1,:]
-#         weights[i] = 1.0/(2*(n+lambd))
-#     end
-
-#     for i=n+2:2*n+1
-#         sigma_xy_ddots[i,:] = mean_row - sigma_pt_mat[i-n-1,:]
-#         weights[i] = 1.0/(2*(n+lambd))
-#     end
-
-#     # Now apply accelerations to get the states
-#     sigma_states = Vector{MultiRotorUAVState}(2*n+1)
-#     for i = 1:2*n+1
-#         sigma_states[i] = apply_controls(model, state, sigma_xy_ddots[i,1], sigma_xy_ddots[i,2])
-#     end
-
-#     return sigma_states, weights
-# end

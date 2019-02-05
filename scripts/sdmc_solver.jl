@@ -14,7 +14,11 @@ using Statistics
 using HitchhikingDrones
 using JSON
 
-# julia sdmc_solver.jl hopon_preabort-111-alpha0.375-poly-abort_thresh-0.75-inhor.jld2 hopon_preabort-111-alpha0.375-poly-preabort-outhor.jld2 hopoff-111-inhor.jld2 hopoff-111-outhor.jld2 flight-111-alpha-0.375-poly.jld2 ../data/paramsets/scale-1.toml ../data/paramsets/simtime-1.toml ../data/paramsets/cost-1.toml /scratch/shushman/HitchhikingDrones/set-1-easy/set-1-100-to-1000 1 nolog
+## Example call to the script with arguments
+# julia sdmc_solver.jl hopon_preabort-111-alpha0.375-poly-abort_thresh-0.75-inhor.jld2 
+# hopon_preabort-111-alpha0.375-poly-preabort-outhor.jld2 hopoff-111-inhor.jld2 hopoff-111-outhor.jld2 
+# flight-111-alpha-0.375-poly.jld2 ../data/paramsets/scale-1.toml ../data/paramsets/simtime-1.toml ../data/paramsets/cost-1.toml 
+# /scratch/shushman/HitchhikingDrones/set-1-easy/set-1-100-to-1000 1 nolog
 
 
 
