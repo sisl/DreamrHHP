@@ -1,6 +1,6 @@
 # DreamrHHP
 
-Code repository for the IEEE Intelligent Vehicles Symposium 2019 paper on Dynamic Real-time Multimodal Routing (DREAMR) with Hierarchical Hybrid Planning (HHP). The paper is available on [arXiv]( https://arxiv.org/abs/1902.01560). The supplementary video for visualizing behavior on two grid problems is available on YouTube [here](https://youtu.be/e5IcB79TEXY) and the one for a real-world-scale street scenario is [here](https://youtu.be/c3nfTa8BA-E)
+Code repository for the IEEE Intelligent Vehicles Symposium 2019 paper on Dynamic Real-time Multimodal Routing (DREAMR) with Hierarchical Hybrid Planning (HHP). The paper is available on [arXiv]( https://arxiv.org/abs/1902.01560). **Supplementary illustrative videos are available** [here](https://youtu.be/e5IcB79TEXY) and [here](https://youtu.be/c3nfTa8BA-E).
 
 **N.B - The code is stable but is a continuous work in-progress. The experiments for the paper were done in Julia 0.6 and is available as the v0.2 release (the module is called HitchhikingDrones rather than DreamrHHP).**
 
