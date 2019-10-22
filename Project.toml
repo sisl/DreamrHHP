@@ -29,3 +29,11 @@ Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 TOML = "191fdcea-f9f2-43e0-b922-d33f71e2abc3"
+
+[compat]
+BasicPOMCP = "0.2.1"
+LocalApproximationValueIteration = "0.3.0"
+POMDPModelTools = "0.1.7"
+POMDPModels = "0.3.5"
+POMDPPolicies = "0.1.5"
+POMDPs = "0.7"
