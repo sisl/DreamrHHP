@@ -5,7 +5,7 @@ Code repository for the IEEE Intelligent Vehicles Symposium 2019 paper on Dynami
 **N.B - The code is stable but is a continuous work in-progress. The experiments for the paper were done in Julia 0.6 and is available as the v0.2 release (the module is called HitchhikingDrones rather than DreamrHHP).**
 
 ## Setup
-The DreamrHHP repository is set up as a package with its own environment in [Julia 1.0](https://julialang.org/downloads/). Look at **Using someone else's project** at the Julia [package manager documentation](https://julialang.github.io/Pkg.jl/v1/environments/#Using-someone-else's-project-1) for the basic idea. To get the code up and running (after having installed Julia):
+The DreamrHHP repository is set up as a package with its own environment in [Julia 1.0](https://julialang.org/downloads/). Look at **Using someone else's project** at the Julia [package manager documentation](https://julialang.github.io/Pkg.jl/v1/environments/#Using-someone-else's-project-1) for the basic idea. To get the code up and running, first install Julia. You then need to add the `POMDPs.jl` registry; see **Installation** [here](https://github.com/JuliaPOMDP/POMDPs.jl/tree/v0.7.3). Once you have done the above, run the following:
 ```shell
 $ git clone https://github.com/sisl/DreamrHHP.git
 $ cd DreamrHHP
